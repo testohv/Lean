@@ -184,13 +184,14 @@ namespace QuantConnect.Tests.Engine
         {
         }
 
-        public void SendFinalResult(AlgorithmNodePacket job,
+        public Packet SendFinalResult(AlgorithmNodePacket job,
             Dictionary<int, Order> orders,
             Dictionary<DateTime, decimal> profitLoss,
             Dictionary<string, Holding> holdings,
             StatisticsResults statisticsResults,
             Dictionary<string, string> banner)
         {
+            return new BacktestResultPacket(); 
         }
 
         public void SendStatusUpdate(string algorithmId, AlgorithmStatus status, string message = "")

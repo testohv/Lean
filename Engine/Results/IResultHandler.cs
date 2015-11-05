@@ -54,24 +54,6 @@ namespace QuantConnect.Lean.Engine.Results
         }
 
         /// <summary>
-        /// Sampling period for timespans between resamples of the charting equity.
-        /// </summary>
-        /// <remarks>Specifically critical for backtesting since with such long timeframes the sampled data can get extreme.</remarks>
-        TimeSpan ResamplePeriod
-        {
-            get;
-        }
-
-        /// <summary>
-        /// How frequently the backtests push messages to the browser.
-        /// </summary>
-        /// <remarks>Update frequency of notification packets</remarks>
-        TimeSpan NotificationPeriod
-        {
-            get;
-        }
-
-        /// <summary>
         /// Boolean flag indicating the result hander thread is busy. 
         /// False means it has completely finished and ready to dispose.
         /// </summary>
@@ -204,7 +186,7 @@ namespace QuantConnect.Lean.Engine.Results
         /// <param name="holdings">Current holdings state for the algorithm</param>
         /// <param name="statisticsResults">Statistics information for the algorithm (empty if not finished)</param>
         /// <param name="banner">Runtime statistics banner information</param>
-        void SendFinalResult(AlgorithmNodePacket job, Dictionary<int, Order> orders, Dictionary<DateTime, decimal> profitLoss, Dictionary<string, Holding> holdings, StatisticsResults statisticsResults, Dictionary<string, string> banner);
+        Packet SendFinalResult(AlgorithmNodePacket job, Dictionary<int, Order> orders, Dictionary<DateTime, decimal> profitLoss, Dictionary<string, Holding> holdings, StatisticsResults statisticsResults, Dictionary<string, string> banner);
 
         /// <summary>
         /// Send a algorithm status update to the user of the algorithms running state.

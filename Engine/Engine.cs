@@ -135,8 +135,8 @@ namespace QuantConnect.Lean.Engine
                 //Tiny chance there was an uncontrolled collapse of a server, resulting in an old user task circulating.
                 //In this event kill the old algorithm and leave a message so the user can later review.
                 leanEngineSystemHandlers.Api.SetAlgorithmStatus(job.AlgorithmId, AlgorithmStatus.RuntimeError, _collapseMessage);
-                leanEngineSystemHandlers.Notify.SetChannel(job.Channel);
-                leanEngineSystemHandlers.Notify.RuntimeError(job.AlgorithmId, _collapseMessage);
+                leanEngineSystemHandlers.Notify.SetAuthentication(job);
+                leanEngineSystemHandlers.Notify.Send(new RuntimeErrorPacket { Message = _collapseMessage, AlgorithmId = job.AlgorithmId, Channel = job.Channel, Type = PacketType.RuntimeError });
                 leanEngineSystemHandlers.JobQueue.AcknowledgeJob(job);
                 return;
             }
@@ -197,7 +197,7 @@ namespace QuantConnect.Lean.Engine
                 Thread threadRealTime = null;
 
                 //-> Initialize messaging system
-                _systemHandlers.Notify.SetChannel(job.Channel);
+                _systemHandlers.Notify.SetAuthentication(job);
 
                 //-> Set the result handler type for this algorithm job, and launch the associated result thread.
                 _algorithmHandlers.Results.Initialize(job, _systemHandlers.Notify, _systemHandlers.Api, _algorithmHandlers.DataFeed, _algorithmHandlers.Setup, _algorithmHandlers.Transactions);

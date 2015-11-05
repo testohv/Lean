@@ -68,7 +68,7 @@ namespace QuantConnect.Tests
                         engine.Run(job, algorithmPath);
                     }).Wait();
 
-                    var consoleResultHandler = (ConsoleResultHandler)algorithmHandlers.Results;
+                    var consoleResultHandler = (BacktestingResultHandler)algorithmHandlers.Results;
                     statistics = consoleResultHandler.FinalStatistics;
                 }
             }

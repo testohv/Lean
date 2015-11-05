@@ -13,23 +13,40 @@
  * limitations under the License.
 */
 
+using System;
+using QuantConnect.Configuration;
 using QuantConnect.Interfaces;
+using QuantConnect.Logging;
 using QuantConnect.Notifications;
 using QuantConnect.Packets;
 
 namespace QuantConnect.Messaging
 {
     /// <summary>
-    /// Local/desktop implementation of messaging system for Lean Engine.
+    /// Console and Desktop implementation of messaging system for Lean Engine.
     /// </summary>
     public class Messaging : IMessagingHandler
     {
+
+        private int _userId;
+        private string _apiToken;
+        private string _algorithmId;
+        private bool _transmit = Config.GetBool("enable-charting", true);
+
+        /// <summary>
+        /// Class constructor
+        /// </summary>
+        public Messaging()
+        {
+            HasSubscribers = true;
+        }
+
         /// <summary>
         /// The default implementation doesn't send messages, so this does nothing.
         /// </summary>
         public bool HasSubscribers
         {
-            get; 
+            get;
             set;
         }
 
@@ -38,15 +55,17 @@ namespace QuantConnect.Messaging
         /// </summary>
         public void Initialize()
         {
-            //
+            // NOP.
         }
 
         /// <summary>
         /// Set the messaging channel
         /// </summary>
-        public void SetChannel(string channelId)
+        public void SetAuthentication(AlgorithmNodePacket job)
         {
-            //
+            _userId = job.UserId;
+            _apiToken = job.Channel;
+            _algorithmId = job.AlgorithmId;
         }
 
         /// <summary>
@@ -54,90 +73,112 @@ namespace QuantConnect.Messaging
         /// </summary>
         public void Send(Packet packet)
         {
-            //
+            //Preprocess debug messages:
+            var debug = packet as DebugPacket;
+            if (debug != null) Log.Trace("Messaging.Send(): Debug: " + debug.Message);
+
+            //Preprocess error messages:
+            var runtimeError = packet as RuntimeErrorPacket;
+            if (runtimeError != null) Log.Error("Messaging.Send(): Runtime Error: " + runtimeError.Message + " ST: " + runtimeError.StackTrace);
+
+            //Preprocess handled error messages:
+            var handled = packet as HandledErrorPacket;
+            if (handled != null) Log.Error("BacktestingResultHandler.Run(): HandledError Packet: " + handled.Message);
+
+            //Process final result packages:
+            var result = packet as BacktestResultPacket;
+            if (result != null) ProcessResultPacket(result);
+
+            if (_transmit)
+            {
+                this.Transmit(_userId, _apiToken, packet);
+            }
         }
 
         /// <summary>
-        /// Send a debug message packet
+        /// If its the final result packet, send a summary:
         /// </summary>
-        public void DebugMessage(string line, int projectId, string algorithmId = "", string compileId = "")
+        /// <param name="packet">Result packet</param>
+        private void ProcessResultPacket(BacktestResultPacket packet)
         {
-            //
+            if (packet.Progress == 1)
+            {
+                // uncomment these code traces to help write regression tests
+                //Console.WriteLine("var statistics = new Dictionary<string, string>();");
+
+                // Bleh. Nicely format statistical analysis on your algorithm results. Save to file etc.
+                foreach (var pair in packet.Results.Statistics)
+                {
+                    Log.Trace("STATISTICS:: " + pair.Key + " " + pair.Value);
+                    //Console.WriteLine(string.Format("statistics.Add(\"{0}\",\"{1}\");", pair.Key, pair.Value));
+                }
+
+                //foreach (var pair in statisticsResults.RollingPerformances) 
+                //{
+                //    Log.Trace("ROLLINGSTATS:: " + pair.Key + " SharpeRatio: " + Math.Round(pair.Value.PortfolioStatistics.SharpeRatio, 3));
+                //}
+            }
         }
 
         /// <summary>
-        /// Send a security types in algorithm information packet
+        /// Common notification transmitter
         /// </summary>
-        public void SecurityTypes(SecurityTypesPacket types)
+        /// <param name="message">Notification packet</param>
+        public void SendNotification(Notification message)
         {
-            //
-        }
+            switch (message.GetType().Name)
+            {
+                case "NotificationEmail":
+                    Email(message as NotificationEmail);
+                    break;
 
-        /// <summary>
-        /// Send a log message packet
-        /// </summary>
-        public void LogMessage(string algorithmId, string message)
-        {
-            //
-        }
+                case "NotificationSms":
+                    Sms(message as NotificationSms);
+                    break;
 
-        /// <summary>
-        /// Send a runtime error packet:
-        /// </summary>
-        public void RuntimeError(string algorithmId, string error, string stacktrace)
-        {
-            //
-        }
+                case "NotificationWeb":
+                    Web(message as NotificationWeb);
+                    break;
 
-        /// <summary>
-        /// Send an algorithm status update
-        /// </summary>
-        public void AlgorithmStatus(string algorithmId, AlgorithmStatus status, string message = "")
-        {
-            //
-        }
-
-        /// <summary>
-        /// Send a backtest result packet
-        /// </summary>
-        public void BacktestResult(BacktestResultPacket packet, bool finalPacket = false)
-        {
-            //
-        }
-
-        /// <summary>
-        /// Send a live trading packet result.
-        /// </summary>
-        public void LiveTradingResult(LiveResultPacket packet)
-        {
-            //
+                default:
+                    try
+                    {
+                        message.Send();
+                    }
+                    catch (Exception err)
+                    {
+                        Log.Error("Messaging.SendNotification(): Error sending notification: " + err.Message);
+                        Send(new HandledErrorPacket(_algorithmId, "Custom send notification: " + err.Message, err.StackTrace));
+                    }
+                    break;
+            }
         }
 
         /// <summary>
         /// Send a rate limited email notification triggered during live trading from a user algorithm
         /// </summary>
-        /// <param name="notification"></param>
-        public void Email(NotificationEmail notification)
+        /// <param name="email"></param>
+        private void Email(NotificationEmail email)
         {
-            //
+            Log.Trace("Messaging.Email(): Email Not Implemented: Subject: " + email.Subject);
         }
 
         /// <summary>
         /// Send a rate limited SMS notification triggered duing live trading from a user algorithm.
         /// </summary>
-        /// <param name="notification"></param>
-        public void Sms(NotificationSms notification)
+        /// <param name="sms"></param>
+        private void Sms(NotificationSms sms)
         {
-            //
+            Log.Trace("Messaging.Sms(): Sms Not Implemented: Message: " + sms.Message);
         }
 
         /// <summary>
         /// Send a web REST request notification triggered during live trading from a user algorithm.
         /// </summary>
-        /// <param name="notification"></param>
-        public void Web(NotificationWeb notification)
+        /// <param name="web"></param>
+        private void Web(NotificationWeb web)
         {
-            //
+            Log.Trace("Messaging.Web(): Web Not Implemented: Url: " + web.Address);
         }
     }
 }

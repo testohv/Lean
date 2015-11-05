@@ -43,7 +43,7 @@ namespace QuantConnect.Tests.Engine.DataFeeds
             // job is used to send into DataQueueHandler
             var job = new LiveNodePacket();
             // result handler is used due to dependency in SubscriptionDataReader
-            var resultHandler = new ConsoleResultHandler();
+            var resultHandler = new BacktestingResultHandler();
 
             var lastTime = DateTime.MinValue;
             var timeProvider = new RealTimeProvider();
@@ -414,7 +414,7 @@ namespace QuantConnect.Tests.Engine.DataFeeds
             // job is used to send into DataQueueHandler
             var job = new LiveNodePacket();
             // result handler is used due to dependency in SubscriptionDataReader
-            var resultHandler = new ConsoleResultHandler(); // new ResultHandlerStub();
+            var resultHandler = new BacktestingResultHandler(); // new ResultHandlerStub();
 
             dataQueueHandler = new FuncDataQueueHandler(getNextTicksFunction);
 
