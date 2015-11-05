@@ -323,6 +323,18 @@ namespace QuantConnect.AlgorithmFactory
         }
 
         /// <summary>
+        /// Get the extended type names from the assembly path provided.
+        /// </summary>
+        /// <param name="assemblyPath"></param>
+        /// <returns></returns>
+        public static List<string> GetExtendedTypeNames(string assemblyPath)
+        {
+            var assembly = Assembly.LoadFrom(assemblyPath);
+            return GetExtendedTypeNames(assembly);
+        }
+
+
+        /// <summary>
         /// Get a list of all the matching type names in this DLL assembly:
         /// </summary>
         /// <param name="assembly">Assembly dll we're loading.</param>
