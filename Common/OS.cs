@@ -229,7 +229,7 @@ namespace QuantConnect
         {
             return new Dictionary<string, string>
             {
-                {"CPU Usage",            CpuUsage.NextValue().ToString("0.0") + "%"},
+                {"CPU Usage",            CpuUsagePercentage},
                 {"Used RAM (MB)",        TotalPhysicalMemoryUsed.ToString()},
                 {"Total RAM (MB)",        TotalPhysicalMemory.ToString()},
                 {"Used Disk Space (MB)", DriveSpaceUsed.ToString() },
