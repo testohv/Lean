@@ -127,7 +127,7 @@ namespace QuantConnect.Views.WinForms
                 string algorithmPath;
                 var job = systemHandlers.JobQueue.NextJob(out algorithmPath);
                 engine.Run(job, algorithmPath);
-                systemHandlers.JobQueue.AcknowledgeJob(job);
+                systemHandlers.JobQueue.AcknowledgeJob(job, null);
             });
             _leanEngineThread.Start();
 

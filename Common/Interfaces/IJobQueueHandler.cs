@@ -40,6 +40,7 @@ namespace QuantConnect.Interfaces
         /// Signal task complete
         /// </summary>
         /// <param name="job">Work to do.</param>
-        void AcknowledgeJob(AlgorithmNodePacket job);
+        /// <param name="result">Send the accompanying result with the ack.</param>
+        void AcknowledgeJob(AlgorithmNodePacket job, Packet result);
     }
 }

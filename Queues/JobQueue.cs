@@ -30,19 +30,24 @@ namespace QuantConnect.Queues
     {
         // The type name of the QuantConnect.Brokerages.Paper.PaperBrokerage
         private const string PaperBrokerageTypeName = "PaperBrokerage";
-        private bool _liveMode = Config.GetBool("live-mode");
+        private readonly bool _liveMode = Config.GetBool("live-mode");
+        private readonly string _apiToken = Config.Get("job-api-token");
+        private readonly int _userId = Config.GetInt("job-user-id", int.MaxValue);
+        private readonly int _projectId = Config.GetInt("job-project-id", int.MaxValue);
+
         
+        /// <summary>
+        /// Local implementation of the LEAN Job Queue.
+        /// </summary>
+        public JobQueue()
+        {
+            AlgorithmLocation = Config.Get("algorithm-location", "QuantConnect.Algorithm.CSharp.dll");
+        }
+
         /// <summary>
         /// Physical location of Algorithm DLL.
         /// </summary>
-        private string AlgorithmLocation
-        {
-            get
-            {
-                // we expect this dll to be copied into the output directory
-                return Config.Get("algorithm-location", "QuantConnect.Algorithm.CSharp.dll"); 
-            }
-        }
+        private string AlgorithmLocation { get; set; }
 
         /// <summary>
         /// Initialize the job queue:
@@ -51,7 +56,7 @@ namespace QuantConnect.Queues
         {
             //
         }
-        
+
         /// <summary>
         /// Desktop/Local Get Next Task - Get task from the Algorithm folder of VS Solution.
         /// </summary>
@@ -69,15 +74,16 @@ namespace QuantConnect.Queues
                     Type = PacketType.LiveNode,
                     Algorithm = File.ReadAllBytes(AlgorithmLocation),
                     Brokerage = Config.Get("live-mode-brokerage", PaperBrokerageTypeName),
-                    Channel = Config.Get("job-channel"),
-                    UserId = Config.GetInt("job-user-id"),
+                    Channel = _apiToken,
+                    UserId = _userId,
+                    ProjectId = _projectId,
                     Version = Constants.Version,
                     DeployId = Config.Get("algorithm-type-name"),
                     RamAllocation = int.MaxValue
                 };
 
                 try
-                { 
+                {
                     // import the brokerage data for the configured brokerage
                     var brokerageFactory = Composer.Instance.Single<IBrokerageFactory>(factory => factory.BrokerageType.MatchesTypeName(liveJob.Brokerage));
                     liveJob.BrokerageData = brokerageFactory.BrokerageData;
@@ -91,13 +97,16 @@ namespace QuantConnect.Queues
             }
 
             //Default run a backtesting job.
-            var backtestJob = new BacktestNodePacket(0, 0, "", new byte[] {}, 10000, "local")
+            var backtestJob = new BacktestNodePacket(0, 0, "", new byte[] { }, 10000, "local")
             {
                 Type = PacketType.BacktestNode,
-                Algorithm = File.ReadAllBytes(AlgorithmLocation),
+                UserId = _userId,
+                Channel = _apiToken,
+                ProjectId = _projectId,
                 Version = Constants.Version,
-                BacktestId = Config.Get("algorithm-type-name"),
                 RamAllocation = int.MaxValue,
+                Algorithm = File.ReadAllBytes(AlgorithmLocation),
+                BacktestId = Config.Get("algorithm-type-name"),
                 Language = (Language)Enum.Parse(typeof(Language), Config.Get("algorithm-language"))
             };
 
@@ -107,12 +116,21 @@ namespace QuantConnect.Queues
         /// <summary>
         /// Desktop/Local acknowledge the task processed. Nothing to do.
         /// </summary>
-        /// <param name="job"></param>
-        public void AcknowledgeJob(AlgorithmNodePacket job)
+        /// <param name="job">Work packet to run</param>
+        /// <param name="result">Result for the job we've just run.</param>
+        public void AcknowledgeJob(AlgorithmNodePacket job, Packet result)
         {
             // Make the console window pause so we can read log output before exiting and killing the application completely
             Log.Trace("Engine.Main(): Analysis Complete. Press any key to continue.");
             Console.Read();
+        }
+
+        /// <summary>
+        /// Submit the final packet to be saved.
+        /// </summary>
+        public void SendFinalResult(Packet packet)
+        {
+            //NOP.
         }
     }
 

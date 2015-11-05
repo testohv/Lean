@@ -137,19 +137,20 @@ namespace QuantConnect.Lean.Engine
                 leanEngineSystemHandlers.Api.SetAlgorithmStatus(job.AlgorithmId, AlgorithmStatus.RuntimeError, _collapseMessage);
                 leanEngineSystemHandlers.Notify.SetAuthentication(job);
                 leanEngineSystemHandlers.Notify.Send(new RuntimeErrorPacket { Message = _collapseMessage, AlgorithmId = job.AlgorithmId, Channel = job.Channel, Type = PacketType.RuntimeError });
-                leanEngineSystemHandlers.JobQueue.AcknowledgeJob(job);
+                leanEngineSystemHandlers.JobQueue.AcknowledgeJob(job, null); 
                 return;
             }
 
+            Packet result = null;
             try
             {
                 var engine = new Engine(leanEngineSystemHandlers, leanEngineAlgorithmHandlers, liveMode);
-                engine.Run(job, assemblyPath);
+                result = engine.Run(job, assemblyPath);
             }
             finally
             {
                 //Delete the message from the job queue:
-                leanEngineSystemHandlers.JobQueue.AcknowledgeJob(job);
+                leanEngineSystemHandlers.JobQueue.AcknowledgeJob(job, result);
                 Log.Trace("Engine.Main(): Packet removed from queue: " + job.AlgorithmId);
 
                 // clean up resources
@@ -177,10 +178,11 @@ namespace QuantConnect.Lean.Engine
         /// </summary>
         /// <param name="job">The algorithm job to be processed</param>
         /// <param name="assemblyPath">The path to the algorithm's assembly</param>
-        public void Run(AlgorithmNodePacket job, string assemblyPath)
+        public Packet Run(AlgorithmNodePacket job, string assemblyPath)
         {
             var algorithm = default(IAlgorithm);
             var algorithmManager = new AlgorithmManager(_liveMode);
+            Packet resultPacket = null;
 
             //Start monitoring the backtest active status:
             var statusPing = new StateCheck.Ping(algorithmManager, _systemHandlers.Api, _algorithmHandlers.Results, _systemHandlers.Notify, job);
@@ -396,7 +398,7 @@ namespace QuantConnect.Lean.Engine
                                 job.AlgorithmId, totalSeconds.ToString("F2"), ((dataPoints/(double) 1000)/totalSeconds).ToString("F0"),
                                 dataPoints.ToString("N0")));
 
-                        _algorithmHandlers.Results.SendFinalResult(job, orders, algorithm.Transactions.TransactionRecord, holdings, statisticsResults, banner);
+                        resultPacket = _algorithmHandlers.Results.SendFinalResult(job, orders, algorithm.Transactions.TransactionRecord, holdings, statisticsResults, banner);
                     }
                     catch (Exception err)
                     {
@@ -456,6 +458,8 @@ namespace QuantConnect.Lean.Engine
                 _algorithmHandlers.Transactions.Exit();
                 _algorithmHandlers.RealTime.Exit();
             }
+
+            return resultPacket;
         }
     } // End Algorithm Node Core Thread
 } // End Namespace
