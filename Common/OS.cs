@@ -90,6 +90,17 @@ namespace QuantConnect
         }
 
         /// <summary>
+        /// User friendly display of CPU
+        /// </summary>
+        public static string CpuUsagePercentage
+        {
+            get
+            {
+                return CpuUsage.NextValue().ToString("0.0") + "%";
+            }
+        }
+
+        /// <summary>
         /// Global Flag :: Operating System
         /// </summary>
         public static bool IsLinux 
