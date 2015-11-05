@@ -17,6 +17,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using QuantConnect.Logging;
 
@@ -241,6 +242,17 @@ namespace QuantConnect.Configuration
                 return false;
             }
         }
+
+        /// <summary>
+        /// Write the contents of the serialized configuration back to the disk.
+        /// </summary>
+        public static void WriteAll()
+        {
+            if (!Settings.IsValueCreated) return;
+            var serialized = JsonConvert.SerializeObject(Settings.Value, Formatting.Indented);
+            File.WriteAllText("config.json", serialized);
+        }
+
 
         private static JToken GetToken(JToken settings, string key)
         {
