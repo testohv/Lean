@@ -128,6 +128,10 @@
     <Compile Include="Brokerages\InteractiveBrokersBrokerageModel.cs" />
     <Compile Include="Brokerages\OandaBrokerageModel.cs" />
     <Compile Include="Brokerages\TradierBrokerageModel.cs" />
+    <Compile Include="Commands\ICommand.cs" />
+    <Compile Include="Commands\LiquidateCommand.cs" />
+    <Compile Include="Commands\OrderCommand.cs" />
+    <Compile Include="Commands\QuitCommand.cs" />
     <Compile Include="Constants.cs" />
     <Compile Include="Data\Auxiliary\FactorFile.cs" />
     <Compile Include="Data\Auxiliary\FactorFileRow.cs" />
@@ -171,6 +175,7 @@
     <Compile Include="Interfaces\IApi.cs" />
     <Compile Include="Interfaces\IBrokerage.cs" />
     <Compile Include="Interfaces\IBrokerageFactory.cs" />
+    <Compile Include="Interfaces\ICommandQueueHandler.cs" />
     <Compile Include="Interfaces\IDataQueueHandler.cs" />
     <Compile Include="Interfaces\IHistoryProvider.cs" />
     <Compile Include="Interfaces\IJobQueueHandler.cs" />
@@ -218,6 +223,8 @@
     <Compile Include="Securities\ConstantFeeTransactionModel.cs" />
     <Compile Include="Securities\Equity\EquityMarginModel.cs" />
     <Compile Include="Securities\Equity\EquityPortfolioModel.cs" />
+    <Compile Include="Securities\DelayedSettlementModel.cs" />
+    <Compile Include="Securities\ISettlementModel.cs" />
     <Compile Include="Securities\LocalMarketHours.cs" />
     <Compile Include="Securities\SecurityExchangeHours.cs" />
     <Compile Include="Securities\SecurityExchangeHoursProvider.cs" />
@@ -231,6 +238,8 @@
     <Compile Include="Securities\MarginCallModel.cs" />
     <Compile Include="Securities\SecurityPortfolioModel.cs" />
     <Compile Include="Securities\SecurityMarginModel.cs" />
+    <Compile Include="Securities\ImmediateSettlementModel.cs" />
+    <Compile Include="Securities\UnsettledCashAmount.cs" />
     <Compile Include="SeriesSampler.cs" />
     <Compile Include="Data\Custom\Quandl.cs" />
     <Compile Include="Data\DynamicData.cs" />

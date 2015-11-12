@@ -42,6 +42,7 @@ namespace QuantConnect.Brokerages.Fxcm
         private const int ResponseTimeout = 2500;
         private bool _isOrderUpdateOrCancelRejected;
         private bool _isOrderSubmitRejected;
+        private volatile bool _connectionLost;
 
         private readonly Dictionary<string, string> _mapInstrumentSymbols = new Dictionary<string, string>();
         private readonly Dictionary<string, TradingSecurity> _fxcmInstruments = new Dictionary<string, TradingSecurity>();
@@ -381,7 +382,10 @@ namespace QuantConnect.Brokerages.Fxcm
                 {
                     if (orderId == "NONE" && orderStatus.getCode() == IFixValueDefs.__Fields.FXCMORDSTATUS_REJECTED)
                     {
-                        Log.Trace("Order submit rejected: {0}", message.getFXCMErrorDetails().Replace("\n", ""));
+                        var messageText = message.getFXCMErrorDetails().Replace("\n", "");
+                        Log.Trace(messageText);
+                        OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Warning, "OrderSubmitReject", messageText));
+
                         _isOrderSubmitRejected = true;
                     }
 
@@ -440,7 +444,10 @@ namespace QuantConnect.Brokerages.Fxcm
         {
             if (message.getRequestID() == _currentRequest)
             {
-                Log.Trace("Order update or cancellation rejected: {0}", message.getFXCMErrorDetails().Replace("\n", ""));
+                var messageText = message.getFXCMErrorDetails().Replace("\n", "");
+                Log.Trace(messageText);
+                OnMessage(new BrokerageMessageEvent(BrokerageMessageType.Warning, "OrderUpdateOrCancelReject", messageText));
+
                 _isOrderUpdateOrCancelRejected = true;
 
                 _mapRequestsToAutoResetEvents[_currentRequest].Set();
@@ -458,6 +465,20 @@ namespace QuantConnect.Brokerages.Fxcm
         /// <param name="message">Status message received</param>
         public void messageArrived(ISessionStatus message)
         {
+            if (message.getStatusCode() == ISessionStatus.__Fields.STATUSCODE_ERROR && !_connectionLost)
+            {
+                OnMessage(BrokerageMessageEvent.Disconnected("Connection with FXCM server lost. " +
+                    "This could be because of internet connectivity issues. " +
+                    "Error message: " + message.getStatusMessage()));
+
+                _connectionLost = true;
+            }
+            else if (message.getStatusCode() == ISessionStatus.__Fields.STATUSCODE_READY && _connectionLost)
+            {
+                OnMessage(BrokerageMessageEvent.Reconnected("Connection with FXCM server restored."));
+
+                _connectionLost = false;
+            }
         }
 
         #endregion

@@ -13,32 +13,22 @@
  * limitations under the License.
 */
 
-using QuantConnect.Brokerages;
 using QuantConnect.Interfaces;
 
-namespace QuantConnect.Lean.Engine.Setup
+namespace QuantConnect.Commands
 {
     /// <summary>
-    /// Provides helper methods for setup handlers
+    /// Represents a command that will liquidate the entire algorithm
     /// </summary>
-    public static class SetupHandler
+    public sealed class LiquidateCommand : ICommand
     {
         /// <summary>
-        /// Sets the transaction and settlement models in the algorithm based on the selected brokerage properties
+        /// Submits orders to liquidate all current holdings in the algorithm
         /// </summary>
-        public static void UpdateModels(IAlgorithm algorithm, IBrokerageModel model)
+        /// <param name="algorithm">The algorithm to be liquidated</param>
+        public void Run(IAlgorithm algorithm)
         {
-            if (model.GetType() == typeof (DefaultBrokerageModel))
-            {
-                // if we're using the default don't do anything
-                return;
-            }
-
-            foreach (var security in algorithm.Securities.Values)
-            {
-                security.TransactionModel = model.GetTransactionModel(security);
-                security.SettlementModel = model.GetSettlementModel(security, algorithm.AccountType);
-            }
+            algorithm.Liquidate();
         }
     }
 }

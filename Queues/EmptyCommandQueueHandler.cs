@@ -13,32 +13,37 @@
  * limitations under the License.
 */
 
-using QuantConnect.Brokerages;
+using System.Collections.Generic;
+using System.Linq;
+using QuantConnect.Commands;
 using QuantConnect.Interfaces;
+using QuantConnect.Packets;
 
-namespace QuantConnect.Lean.Engine.Setup
+namespace QuantConnect.Queues
 {
     /// <summary>
-    /// Provides helper methods for setup handlers
+    /// Provides an implementation of <see cref="ICommandQueueHandler"/> that never
+    /// returns a command. This is useful for local console backtesting when we don't
+    /// really want to issue commands
     /// </summary>
-    public static class SetupHandler
+    public class EmptyCommandQueueHandler : ICommandQueueHandler
     {
         /// <summary>
-        /// Sets the transaction and settlement models in the algorithm based on the selected brokerage properties
+        /// NOP
         /// </summary>
-        public static void UpdateModels(IAlgorithm algorithm, IBrokerageModel model)
+        /// <param name="job">unused</param>
+        /// <param name="algorithm">The algorithm instance</param>
+        public void Initialize(AlgorithmNodePacket job, IAlgorithm algorithm)
         {
-            if (model.GetType() == typeof (DefaultBrokerageModel))
-            {
-                // if we're using the default don't do anything
-                return;
-            }
+        }
 
-            foreach (var security in algorithm.Securities.Values)
-            {
-                security.TransactionModel = model.GetTransactionModel(security);
-                security.SettlementModel = model.GetSettlementModel(security, algorithm.AccountType);
-            }
+        /// <summary>
+        /// Return empty enumerable.
+        /// </summary>
+        /// <returns>null</returns>
+        public IEnumerable<ICommand> GetCommands()
+        {
+            return Enumerable.Empty<ICommand>();
         }
     }
 }

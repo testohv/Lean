@@ -13,6 +13,8 @@
  * limitations under the License.
 */
 
+using System.Threading;
+
 namespace QuantConnect.Data.Market
 {
     /// <summary>
@@ -45,10 +47,6 @@ namespace QuantConnect.Data.Market
         /// </summary>
         public Bar()
         {
-            Open = 0; 
-            High = 0;
-            Low = 0; 
-            Close = 0;
         }
 
         /// <summary>
@@ -72,7 +70,10 @@ namespace QuantConnect.Data.Market
         /// <param name="value">The new value</param>
         public void Update(decimal value)
         {
-            if (Open == 0) Open = value;
+            // Do not accept zero as a new value
+            if (value == 0) return;
+
+            if (Open == 0) Open = High = Low = Close = value;
             if (value > High) High = value;
             if (value < Low) Low = value;
             Close = value;

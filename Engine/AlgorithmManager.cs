@@ -20,6 +20,7 @@ using System.Linq;
 using System.Threading;
 using Fasterflect;
 using QuantConnect.Algorithm;
+using QuantConnect.Commands;
 using QuantConnect.Configuration;
 using QuantConnect.Data;
 using QuantConnect.Data.Market;
@@ -42,7 +43,7 @@ namespace QuantConnect.Lean.Engine
     public class AlgorithmManager
     {
         private DateTime _previousTime;
-        private AlgorithmStatus _algorithmState = AlgorithmStatus.Running;
+        private IAlgorithm _algorithm;
         private readonly object _lock = new object();
         private string _algorithmId = "";
         private DateTime _currentTimeStepTime;
@@ -54,10 +55,7 @@ namespace QuantConnect.Lean.Engine
         /// </summary>
         public AlgorithmStatus State
         {
-            get
-            {
-                return _algorithmState;
-            }
+            get { return _algorithm == null ? AlgorithmStatus.Running : _algorithm.Status; }
         }
 
         /// <summary>
@@ -65,10 +63,7 @@ namespace QuantConnect.Lean.Engine
         /// </summary>
         public string AlgorithmId
         {
-            get
-            {
-                return _algorithmId;
-            }
+            get { return _algorithmId; }
         }
 
         /// <summary>
@@ -93,10 +88,7 @@ namespace QuantConnect.Lean.Engine
         /// <seealso cref="QCAlgorithm.Quit"/>
         public bool QuitState
         {
-            get
-            {
-                return _algorithmState == AlgorithmStatus.Deleted;
-            }
+            get { return State == AlgorithmStatus.Deleted; }
         }
 
         /// <summary>
@@ -104,12 +96,13 @@ namespace QuantConnect.Lean.Engine
         /// </summary>
         public long DataPoints
         {
-            get
-            {
-                return _dataPointCount;
-            }
+            get { return _dataPointCount; }
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="AlgorithmManager"/> class
+        /// </summary>
+        /// <param name="liveMode">True if we're running in live mode, false for backtest mode</param>
         public AlgorithmManager(bool liveMode)
         {
             TimeLoopWithinLimits = () =>
@@ -132,22 +125,27 @@ namespace QuantConnect.Lean.Engine
         /// <param name="transactions">Transaction manager object</param>
         /// <param name="results">Result handler object</param>
         /// <param name="realtime">Realtime processing object</param>
+        /// <param name="commands">The command queue for relaying extenal commands to the algorithm</param>
         /// <param name="token">Cancellation token</param>
         /// <remarks>Modify with caution</remarks>
-        public void Run(AlgorithmNodePacket job, IAlgorithm algorithm, IDataFeed feed, ITransactionHandler transactions, IResultHandler results, IRealTimeHandler realtime, CancellationToken token) 
+        public void Run(AlgorithmNodePacket job, IAlgorithm algorithm, IDataFeed feed, ITransactionHandler transactions, IResultHandler results, IRealTimeHandler realtime, ICommandQueueHandler commands, CancellationToken token) 
         {
             //Initialize:
             _dataPointCount = 0;
+            _algorithm = algorithm;
             var portfolioValue = algorithm.Portfolio.TotalPortfolioValue;
             var backtestMode = (job.Type == PacketType.BacktestNode);
             var methodInvokers = new Dictionary<Type, MethodInvoker>();
             var marginCallFrequency = TimeSpan.FromMinutes(5);
             var nextMarginCallTime = DateTime.MinValue;
+            var settlementScanFrequency = TimeSpan.FromMinutes(30);
+            var nextSettlementScanTime = DateTime.MinValue;
+
             var delistingTickets = new List<OrderTicket>();
 
             //Initialize Properties:
             _algorithmId = job.AlgorithmId;
-            _algorithmState = AlgorithmStatus.Running;
+            _algorithm.Status = AlgorithmStatus.Running;
             _previousTime = algorithm.StartDate.Date;
 
             //Create the method accessors to push generic types into algorithm: Find all OnData events:
@@ -183,7 +181,7 @@ namespace QuantConnect.Lean.Engine
                     if (genericMethod == null && !hasOnDataSlice)
                     {
                         algorithm.RunTimeError = new Exception("Data event handler not found, please create a function matching this template: public void OnData(" + config.Type.Name + " data) {  }");
-                        _algorithmState = AlgorithmStatus.RuntimeError;
+                        _algorithm.Status = AlgorithmStatus.RuntimeError;
                         return;
                     }
                     if (genericMethod != null)
@@ -201,9 +199,9 @@ namespace QuantConnect.Lean.Engine
                 _currentTimeStepTime = DateTime.UtcNow;
 
                 //Check this backtest is still running:
-                if (_algorithmState != AlgorithmStatus.Running)
+                if (_algorithm.Status != AlgorithmStatus.Running)
                 {
-                    Log.Error(string.Format("AlgorithmManager.Run(): Algorthm state changed to {0} at {1}", _algorithmState, timeSlice.Time));
+                    Log.Error(string.Format("AlgorithmManager.Run(): Algorthm state changed to {0} at {1}", _algorithm.Status, timeSlice.Time));
                     break;
                 }
 
@@ -212,6 +210,14 @@ namespace QuantConnect.Lean.Engine
                 {
                     Log.Error("AlgorithmManager.Run(): CancellationRequestion at " + timeSlice.Time);
                     return;
+                }
+
+                // before doing anything, check our command queue
+                foreach (var command in commands.GetCommands())
+                {
+                    if (command == null) continue;
+                    Log.Trace("AlgorithmManager.Run(): Executing {0}", command);
+                    command.Run(algorithm);
                 }
 
                 var time = timeSlice.Time;
@@ -320,15 +326,14 @@ namespace QuantConnect.Lean.Engine
                 }
 
                 //Check if the user's signalled Quit: loop over data until day changes.
-                if (algorithm.GetQuit())
+                if (algorithm.Status == AlgorithmStatus.Stopped)
                 {
-                    _algorithmState = AlgorithmStatus.Quit;
                     Log.Trace("AlgorithmManager.Run(): Algorithm quit requested.");
                     break;
                 }
                 if (algorithm.RunTimeError != null)
                 {
-                    _algorithmState = AlgorithmStatus.RuntimeError;
+                    _algorithm.Status = AlgorithmStatus.RuntimeError;
                     Log.Trace(string.Format("AlgorithmManager.Run(): Algorithm encountered a runtime error at {0}. Error: {1}", timeSlice.Time, algorithm.RunTimeError));
                     break;
                 }
@@ -359,7 +364,7 @@ namespace QuantConnect.Lean.Engine
                         catch (Exception err)
                         {
                             algorithm.RunTimeError = err;
-                            _algorithmState = AlgorithmStatus.RuntimeError;
+                            _algorithm.Status = AlgorithmStatus.RuntimeError;
                             var locator = executingMarginCall ? "Portfolio.MarginCallModel.ExecuteMarginCall" : "OnMarginCall";
                             Log.Error(string.Format("AlgorithmManager.Run(): RuntimeError: {0}: ", locator) + err.Message + " STACK >>> " + err.StackTrace);
                             return;
@@ -375,13 +380,21 @@ namespace QuantConnect.Lean.Engine
                         catch (Exception err)
                         {
                             algorithm.RunTimeError = err;
-                            _algorithmState = AlgorithmStatus.RuntimeError;
+                            _algorithm.Status = AlgorithmStatus.RuntimeError;
                             Log.Error("AlgorithmManager.Run(): RuntimeError: OnMarginCallWarning: " + err.Message + " STACK >>> " + err.StackTrace);
                             return;
                         }
                     }
 
                     nextMarginCallTime = time + marginCallFrequency;
+                }
+
+                // perform check for settlement of unsettled funds
+                if (time >= nextSettlementScanTime || (_liveMode && nextSettlementScanTime > DateTime.Now))
+                {
+                    algorithm.Portfolio.ScanForCashSettlement(algorithm.UtcTime);
+
+                    nextSettlementScanTime = time + settlementScanFrequency;
                 }
 
                 // before we call any events, let the algorithm know about universe changes
@@ -394,7 +407,7 @@ namespace QuantConnect.Lean.Engine
                     catch (Exception err)
                     {
                         algorithm.RunTimeError = err;
-                        _algorithmState = AlgorithmStatus.RuntimeError;
+                        _algorithm.Status = AlgorithmStatus.RuntimeError;
                         Log.Error("AlgorithmManager.Run(): RuntimeError: OnSecuritiesChanged event: " + err.Message);
                         return;
                     }
@@ -425,7 +438,7 @@ namespace QuantConnect.Lean.Engine
                     catch (Exception err)
                     {
                         algorithm.RunTimeError = err;
-                        _algorithmState = AlgorithmStatus.RuntimeError;
+                        _algorithm.Status = AlgorithmStatus.RuntimeError;
                         Log.Error("AlgorithmManager.Run(): RuntimeError: Split event: " + err.Message);
                         return;
                     }
@@ -449,7 +462,7 @@ namespace QuantConnect.Lean.Engine
                 catch (Exception err)
                 {
                     algorithm.RunTimeError = err;
-                    _algorithmState = AlgorithmStatus.RuntimeError;
+                    _algorithm.Status = AlgorithmStatus.RuntimeError;
                     Log.Error("AlgorithmManager.Run(): RuntimeError: Consolidators update: " + err.Message);
                     return;
                 }
@@ -477,7 +490,7 @@ namespace QuantConnect.Lean.Engine
                     catch (Exception err)
                     {
                         algorithm.RunTimeError = err;
-                        _algorithmState = AlgorithmStatus.RuntimeError;
+                        _algorithm.Status = AlgorithmStatus.RuntimeError;
                         Log.Error("AlgorithmManager.Run(): RuntimeError: Custom Data: " + err.Message + " STACK >>> " + err.StackTrace);
                         return;
                     }
@@ -502,7 +515,7 @@ namespace QuantConnect.Lean.Engine
                 catch (Exception err)
                 {
                     algorithm.RunTimeError = err;
-                    _algorithmState = AlgorithmStatus.RuntimeError;
+                    _algorithm.Status = AlgorithmStatus.RuntimeError;
                     Log.Error("AlgorithmManager.Run(): RuntimeError: Dividends/Splits/Delistings: " + err.Message + " STACK >>> " + err.StackTrace);
                     return;
                 }
@@ -519,7 +532,7 @@ namespace QuantConnect.Lean.Engine
                 catch (Exception err)
                 {
                     algorithm.RunTimeError = err;
-                    _algorithmState = AlgorithmStatus.RuntimeError;
+                    _algorithm.Status = AlgorithmStatus.RuntimeError;
                     Log.Error("AlgorithmManager.Run(): RuntimeError: New Style Mode: " + err.Message + " STACK >>> " + err.StackTrace);
                     return;
                 }
@@ -535,7 +548,7 @@ namespace QuantConnect.Lean.Engine
                 catch (Exception err)
                 {
                     algorithm.RunTimeError = err;
-                    _algorithmState = AlgorithmStatus.RuntimeError;
+                    _algorithm.Status = AlgorithmStatus.RuntimeError;
                     Log.Error("AlgorithmManager.Run(): RuntimeError: Slice: " + err.Message + " STACK >>> " + err.StackTrace);
                     return;
                 }
@@ -562,7 +575,7 @@ namespace QuantConnect.Lean.Engine
             }
             catch (Exception err)
             {
-                _algorithmState = AlgorithmStatus.RuntimeError;
+                _algorithm.Status = AlgorithmStatus.RuntimeError;
                 algorithm.RunTimeError = new Exception("Error running OnEndOfAlgorithm(): " + err.Message, err.InnerException);
                 Log.Error("AlgorithmManager.OnEndOfAlgorithm(): " + err.Message + " STACK >>> " + err.StackTrace);
                 return;
@@ -572,7 +585,7 @@ namespace QuantConnect.Lean.Engine
             results.ProcessSynchronousEvents(forceProcess: true);
 
             //Liquidate Holdings for Calculations:
-            if (_algorithmState == AlgorithmStatus.Liquidated && _liveMode)
+            if (_algorithm.Status == AlgorithmStatus.Liquidated && _liveMode)
             {
                 Log.Trace("AlgorithmManager.Run(): Liquidating algorithm holdings...");
                 algorithm.Liquidate();
@@ -581,7 +594,7 @@ namespace QuantConnect.Lean.Engine
             }
 
             //Manually stopped the algorithm
-            if (_algorithmState == AlgorithmStatus.Stopped)
+            if (_algorithm.Status == AlgorithmStatus.Stopped)
             {
                 Log.Trace("AlgorithmManager.Run(): Stopping algorithm...");
                 results.LogMessage("Algorithm Stopped");
@@ -589,7 +602,7 @@ namespace QuantConnect.Lean.Engine
             }
 
             //Backtest deleted.
-            if (_algorithmState == AlgorithmStatus.Deleted)
+            if (_algorithm.Status == AlgorithmStatus.Deleted)
             {
                 Log.Trace("AlgorithmManager.Run(): Deleting algorithm...");
                 results.DebugMessage("Algorithm Id:(" + job.AlgorithmId + ") Deleted by request.");
@@ -617,7 +630,7 @@ namespace QuantConnect.Lean.Engine
                 //This is controlled by the algorithm private variable only.
                 if (state != AlgorithmStatus.Running)
                 {
-                    _algorithmState = state;
+                    _algorithm.Status = state;
                 }
             }
         }
@@ -849,7 +862,7 @@ namespace QuantConnect.Lean.Engine
             catch (Exception err)
             {
                 algorithm.RunTimeError = err;
-                _algorithmState = AlgorithmStatus.RuntimeError;
+                _algorithm.Status = AlgorithmStatus.RuntimeError;
                 Log.Error("AlgorithmManager.Run(): RuntimeError: SampleBenchmark: " + err.Message + " STACK >>> " + err.StackTrace);
             }
         }
