@@ -217,7 +217,10 @@ namespace QuantConnect.Lean.Engine
                 {
                     if (command == null) continue;
                     Log.Trace("AlgorithmManager.Run(): Executing {0}", command);
-                    command.Run(algorithm);
+                    var result = command.Run(algorithm);
+
+                    // send the result of the command off to the result handler
+                    results.Messages.Enqueue(result);
                 }
 
                 var time = timeSlice.Time;
@@ -320,7 +323,7 @@ namespace QuantConnect.Lean.Engine
                         {
                             algorithm.Securities.Remove(ticket.Symbol);
                             delistingTickets.RemoveAt(i--);
-                            Log.Trace("AlgorithmManager.Run(): Delisted Security removed: " + ticket.Symbol.Permtick);
+                            Log.Trace("AlgorithmManager.Run(): Delisted Security removed: " + ticket.Symbol.ToString());
                         }
                     }
                 }
@@ -416,7 +419,7 @@ namespace QuantConnect.Lean.Engine
                 // apply dividends
                 foreach (var dividend in timeSlice.Slice.Dividends.Values)
                 {
-                    Log.Trace("AlgorithmManager.Run(): Applying Dividend for " + dividend.Symbol, true);
+                    Log.Trace("AlgorithmManager.Run(): Applying Dividend for " + dividend.Symbol.ToString(), true);
                     algorithm.Portfolio.ApplyDividend(dividend);
                 }
 
@@ -425,7 +428,7 @@ namespace QuantConnect.Lean.Engine
                 {
                     try
                     {
-                        Log.Trace("AlgorithmManager.Run(): Applying Split for " + split.Symbol, true);
+                        Log.Trace("AlgorithmManager.Run(): Applying Split for " + split.Symbol.ToString(), true);
                         algorithm.Portfolio.ApplySplit(split);
                         // apply the split to open orders as well in raw mode, all other modes are split adjusted
                         if (_liveMode || algorithm.Securities[split.Symbol].SubscriptionDataConfig.DataNormalizationMode == DataNormalizationMode.Raw)
@@ -832,7 +835,7 @@ namespace QuantConnect.Lean.Engine
                 // submit an order to liquidate on market close
                 if (delisting.Type == DelistingType.Warning)
                 {
-                    Log.Trace("AlgorithmManager.Run(): Security delisting warning: " + delisting.Symbol);
+                    Log.Trace("AlgorithmManager.Run(): Security delisting warning: " + delisting.Symbol.ToString());
                     var security = algorithm.Securities[delisting.Symbol];
                     var submitOrderRequest = new SubmitOrderRequest(OrderType.MarketOnClose, security.Type, security.Symbol,
                         -security.Holdings.Quantity, 0, 0, algorithm.UtcTime, "Liquidate from delisting");
@@ -842,9 +845,9 @@ namespace QuantConnect.Lean.Engine
                 }
                 else
                 {
-                    Log.Trace("AlgorithmManager.Run(): Security delisted: " + delisting.Symbol);
+                    Log.Trace("AlgorithmManager.Run(): Security delisted: " + delisting.Symbol.ToString());
                     algorithm.Securities.Remove(delisting.Symbol);
-                    Log.Trace("AlgorithmManager.Run(): Security removed: " + delisting.Symbol);
+                    Log.Trace("AlgorithmManager.Run(): Security removed: " + delisting.Symbol.ToString());
                 }
             }
         }

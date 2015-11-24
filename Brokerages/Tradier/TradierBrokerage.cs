@@ -50,7 +50,7 @@ namespace QuantConnect.Brokerages.Tradier
 
         // we're reusing the equity exchange here to grab typical exchange hours
         private static readonly EquityExchange Exchange =
-            new EquityExchange(SecurityExchangeHoursProvider.FromDataFolder().GetExchangeHours("usa", null, SecurityType.Equity, TimeZones.NewYork));
+            new EquityExchange(SecurityExchangeHoursProvider.FromDataFolder().GetExchangeHours(Market.USA, null, SecurityType.Equity, TimeZones.NewYork));
         
         //Access and Refresh Tokens:
         private string _previousResponseRaw = "";
@@ -394,7 +394,7 @@ namespace QuantConnect.Brokerages.Tradier
             var request = new RestRequest("accounts/{accountId}/balances", Method.GET);
             request.AddParameter("accountId", accountId, ParameterType.UrlSegment);
             var balContainer = Execute<TradierBalance>(request, TradierApiRequestType.Standard);
-            Log.Trace("TradierBrokerage.GetBalanceDetails(): Bal Container: " + JsonConvert.SerializeObject(balContainer));
+            //Log.Trace("TradierBrokerage.GetBalanceDetails(): Bal Container: " + JsonConvert.SerializeObject(balContainer));
             return balContainer.Balances;
         }
 
@@ -884,12 +884,12 @@ namespace QuantConnect.Brokerages.Tradier
         public override List<Holding> GetAccountHoldings()
         {
             var holdings = GetPositions().Select(ConvertHolding).Where(x => x.Quantity != 0).ToList();
-            var symbols = holdings.Select(x => x.Symbol).ToList();
+            var symbols = holdings.Select(x => x.Symbol.Value).ToList();
             var quotes = GetQuotes(symbols).ToDictionary(x => x.Symbol);
             foreach (var holding in holdings)
             {
                 TradierQuote quote;
-                if (quotes.TryGetValue(holding.Symbol, out quote))
+                if (quotes.TryGetValue(holding.Symbol.Value, out quote))
                 {
                     holding.MarketPrice = quote.Last;
                 }
@@ -1310,9 +1310,11 @@ namespace QuantConnect.Brokerages.Tradier
                 foreach (var cachedOrder in _cachedOpenOrdersByTradierOrderID)
                 {
                     TradierOrder updatedOrder;
-                    if (updatedOrders.TryGetValue(cachedOrder.Key, out updatedOrder))
+                    var hasUpdatedOrder = updatedOrders.TryGetValue(cachedOrder.Key, out updatedOrder);
+                    if (hasUpdatedOrder)
                     {
                         // determine if the order has been updated and produce fills accordingly
+                        _cachedOpenOrdersByTradierOrderID[cachedOrder.Key] = updatedOrder;
                         ProcessPotentiallyUpdatedOrder(cachedOrder.Value, updatedOrder);
                         continue;
                     }
@@ -1336,7 +1338,8 @@ namespace QuantConnect.Brokerages.Tradier
                                 Log.Error(string.Format("TradierBrokerage.CheckForFills(): Unable to locate order {0} in cached open orders.", cachedOrderLocal.Key));
                                 throw new Exception("TradierBrokerage.CheckForFills(): GetOrder() return null response");
                             }
-                            
+
+                            _cachedOpenOrdersByTradierOrderID[cachedOrderLocal.Key] = updatedOrderLocal;
                             ProcessPotentiallyUpdatedOrder(cachedOrderLocal.Value, updatedOrderLocal);
                         }
                         catch (Exception err)
@@ -1599,7 +1602,7 @@ namespace QuantConnect.Brokerages.Tradier
                 default:
                     throw new NotImplementedException("The Tradier order type " + order.Type + " is not implemented.");
             }
-            qcOrder.Symbol = new Symbol(order.Symbol);
+            qcOrder.Symbol = new Symbol(SecurityIdentifier.GenerateEquity(order.Symbol, Market.USA), order.Symbol);
             qcOrder.Quantity = ConvertQuantity(order);
             qcOrder.SecurityType = SecurityType.Equity; // tradier only support equities? but also options??
             qcOrder.Status = ConvertStatus(order.Status);
@@ -1760,7 +1763,7 @@ namespace QuantConnect.Brokerages.Tradier
         {
             return new Holding
             {
-                Symbol = position.Symbol,
+                Symbol = new Symbol(SecurityIdentifier.GenerateEquity(position.Symbol, Market.USA), position.Symbol),
                 Type = SecurityType.Equity,
                 AveragePrice = position.CostBasis/position.Quantity,
                 ConversionRate = 1.0m,
