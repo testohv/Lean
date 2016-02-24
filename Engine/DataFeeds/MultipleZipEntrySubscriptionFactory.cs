@@ -32,6 +32,8 @@ namespace QuantConnect.Lean.Engine.DataFeeds
     /// </summary>
     public class MultipleZipEntrySubscriptionFactory : ISubscriptionFactory
     {
+        private Func<Symbol, bool> _filter;
+
         private readonly DateTime _date;
         private readonly bool _isLiveMode;
         private readonly SubscriptionDataConfig _config;
@@ -56,6 +58,19 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             _config = config;
             _isLiveMode = isLiveMode;
             _zipEntryToSymbol = zipEntryToSymbol;
+
+            // default to read everything
+            _filter = x => true;
+        }
+
+        /// <summary>
+        /// Sets the symbol filter. This will prevent reading zip entries who don't match the specified filter
+        /// </summary>
+        /// <param name="filter">The filter function</param>
+        public void SetSymbolFilter(Func<Symbol, bool> filter)
+        {
+            if (filter == null) throw new ArgumentNullException("filter");
+            _filter = filter;
         }
 
         /// <summary>
@@ -97,25 +112,53 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             {
                 // open readers to each zip entry and prime the pumps to get the initial frontier time
                 var readers = zip.Entries
-                    // create a reader for each zip entry, parsing the symbol from the zip entry name
+                    // create a reader for each zip entry, parsing the symbol from the zip entry name, the ctor will prime the pump
                     .Select(x => new ZipEntryReader(x, new SubscriptionDataConfig(_config, symbol: _zipEntryToSymbol(x.FileName)), _date, _isLiveMode))
-                    .Where(x => x.MoveNext())
                     .ToDictionary(x => x.ZipEntryName);
 
-                var frontier = readers.Values.Where(x => x.Current != null).Select(x => x.Current.EndTime).DefaultIfEmpty(DateTime.MinValue).Min();
+                foreach (var reader in readers.Values.ToList())
+                {
+                    if (reader.Current == null)
+                    {
+                        readers.Remove(reader.ZipEntryName);
+                        reader.Dispose();
+                    }
+                }
+
+                var frontier = readers.Values.Select(x => x.Current.EndTime).DefaultIfEmpty(DateTime.MinValue).Min();
 
                 // if there was no data, break immediately
                 if (frontier == DateTime.MinValue)
                 {
                     yield break;
                 }
-                
-                var removedZipEntries = new List<string>();
+
+                var previousFrontier = frontier;
+                var removedZipEntries = new List<ZipEntryReader>();
                 while (readers.Count > 0)
                 {
                     var nextFrontier = DateTime.MaxValue.Ticks;
                     foreach (var reader in readers.Values)
                     {
+                        // verify the reader matches our filter
+                        if (!_filter(reader.Symbol))
+                        {
+                            reader.RequiresFastForward = true;
+                            continue;
+                        }
+
+                        if (reader.RequiresFastForward)
+                        {
+                            // skip all data on or before the previous frontier time
+                            if (!reader.MoveNextFastForward(previousFrontier))
+                            {
+                                // we exhaused the zip entry during fast forward
+                                removedZipEntries.Add(reader);
+                                continue;
+                            }
+                            reader.RequiresFastForward = false;
+                        }
+
                         // pull all data before the frontier time
                         while (reader.Current.EndTime <= frontier)
                         {
@@ -124,11 +167,12 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                             // advance the reader and remove finished zip entries
                             if (!reader.MoveNext())
                             {
-                                removedZipEntries.Add(reader.ZipEntryName);
+                                removedZipEntries.Add(reader);
                                 break;
                             }
                         }
 
+                        // set the next frontier time as the next closest time
                         if (reader.Current != null)
                         {
                             nextFrontier = Math.Min(reader.Current.EndTime.Ticks, nextFrontier);
@@ -141,14 +185,16 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                         yield break;
                     }
 
+                    previousFrontier = frontier;
                     frontier = new DateTime(nextFrontier);
 
                     // remove dead entries
                     if (removedZipEntries.Count != 0)
                     {
-                        foreach (var symbol in removedZipEntries)
+                        foreach (var zipEntryReader in removedZipEntries)
                         {
-                            readers.Remove(symbol);
+                            readers.Remove(zipEntryReader.ZipEntryName);
+                            zipEntryReader.Dispose();
                         }
 
                         removedZipEntries.Clear();
@@ -207,7 +253,11 @@ namespace QuantConnect.Lean.Engine.DataFeeds
         /// </summary>
         private class ZipEntryReader : IEnumerator<BaseData>
         {
+            /// <summary>True when this reader was filtered out of processing, indicating we need to fast forward</summary>
+            public bool RequiresFastForward;
+            public readonly Symbol Symbol;
             public readonly string ZipEntryName;
+
             private readonly DateTime _date;
             private readonly bool _isLiveMode;
             private readonly BaseData _factory;
@@ -219,6 +269,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             /// </summary>
             public ZipEntryReader(ZipEntry entry, SubscriptionDataConfig config, DateTime date, bool isLiveMode)
             {
+                Symbol = config.Symbol;
                 ZipEntryName = entry.FileName;
 
                 _date = date;
@@ -226,6 +277,36 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                 _reader = new StreamReader(entry.OpenReader());
                 _config = config;
                 _factory = (BaseData)Activator.CreateInstance(config.Type);
+
+                // prime the pump
+                MoveNext();
+            }
+
+            /// <summary>
+            /// Fast forwards this reader past all data up to and including the specified frontier time.
+            /// After this method is done, Current will be set properly as if MoveNext had been called
+            /// directly. A return value of true indicates that the Current has a valid value and a return
+            /// value of false indicates that this reader is finished.
+            /// </summary>
+            /// <param name="frontier">The time to fast forward past</param>
+            public bool MoveNextFastForward(DateTime frontier)
+            {
+                // no need to fast forward if we're already ahead of the frontier
+                if (Current.EndTime > frontier)
+                {
+                    return true;
+                }
+
+                // simple implementation of fast forward, this can be optimized to not parse the entire line
+                while (MoveNext())
+                {
+                    if (Current.EndTime > frontier)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
             }
 
             /// <summary>

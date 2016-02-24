@@ -15,6 +15,7 @@
 */
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
 using QuantConnect.Data;
@@ -26,11 +27,14 @@ namespace QuantConnect.Tests.Engine.DataFeeds
     [TestFixture]
     public class MultipleZipEntrySubscriptionFactoryTests
     {
+        private const string TickZipFile = "20151224_quote_american.zip";
+        private const string HourZipFile = "xlre_quote_american.zip";
+
         [Test]
         public void SynchronizesHourEntries()
         {
             MultipleZipEntrySubscriptionFactory reader;
-            var source = CreateReader(out reader, "xlre_quote_american.zip", Resolution.Hour);
+            var source = CreateReader(out reader, HourZipFile, Resolution.Hour);
             var previous = DateTime.MinValue;
             int count = 0;
             foreach (var data in reader.Read(source))
@@ -46,7 +50,7 @@ namespace QuantConnect.Tests.Engine.DataFeeds
         public void SynchronizesTickEntries()
         {
             MultipleZipEntrySubscriptionFactory reader;
-            var source = CreateReader(out reader, "20151224_quote_american.zip", Resolution.Tick);
+            var source = CreateReader(out reader, TickZipFile, Resolution.Tick);
             var previous = DateTime.MinValue;
             int count = 0;
             foreach (var data in reader.Read(source))
@@ -55,6 +59,48 @@ namespace QuantConnect.Tests.Engine.DataFeeds
                 Assert.That(data.EndTime, Is.GreaterThanOrEqualTo(previous));
                 previous = data.EndTime;
             }
+            Assert.AreNotEqual(0, count);
+        }
+
+        [Test]
+        public void FiltersZipEntries()
+        {
+            MultipleZipEntrySubscriptionFactory reader;
+            var source = CreateReader(out reader, TickZipFile, Resolution.Tick);
+            int count = 0;
+            reader.SetSymbolFilter(sym => sym.ID.StrikePrice == 37m);
+            foreach (var data in reader.Read(source))
+            {
+                Assert.AreEqual(37m, data.Symbol.ID.StrikePrice);
+                count++;
+            }
+            Assert.AreNotEqual(0, count);
+        }
+
+        [Test]
+        public void FastForwardsFilteredZipEntries()
+        {
+            MultipleZipEntrySubscriptionFactory reader;
+            var source = CreateReader(out reader, TickZipFile, Resolution.Tick);
+            int count = 0;
+            var previous = DateTime.MinValue;
+            reader.SetSymbolFilter(sym =>
+            {
+                if (count == 0) return true;
+                if (count%4 == 0 && sym.ID.StrikePrice == 22m) return true;
+                if (count%3 == 0 && sym.ID.StrikePrice == 21m) return true;
+                if (count%2 == 0 && sym.ID.StrikePrice == 37m) return true;
+                return false;
+            });
+            var symbols = new HashSet<Symbol>();
+            foreach (var data in reader.Read(source))
+            {
+                // verifying that time is always moving forward, we fast-forwarded the skipped entries
+                Assert.That(data.EndTime, Is.GreaterThanOrEqualTo(previous));
+                count++;
+                symbols.Add(data.Symbol);
+            }
+            Assert.AreEqual(3, symbols.Count);
             Assert.AreNotEqual(0, count);
         }
 
