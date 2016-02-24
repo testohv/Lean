@@ -28,6 +28,11 @@ namespace QuantConnect.Data
         /// <summary>
         /// Binary file data
         /// </summary>
-        Binary
+        Binary,
+
+        /// <summary>
+        /// Zip with multiple text files
+        /// </summary>
+        MultipleTextZipEntry
     }
 }
