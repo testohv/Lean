@@ -22,6 +22,8 @@ using System.Linq;
 using System.Net;
 using Ionic.Zip;
 using QuantConnect.Data;
+using QuantConnect.Data.Market;
+using QuantConnect.Data.UniverseSelection;
 using QuantConnect.Logging;
 
 namespace QuantConnect.Lean.Engine.DataFeeds
@@ -137,6 +139,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                 var removedZipEntries = new List<ZipEntryReader>();
                 while (readers.Count > 0)
                 {
+                    var collection = new BaseDataCollection(frontier, _config.Symbol);
                     var nextFrontier = DateTime.MaxValue.Ticks;
                     foreach (var reader in readers.Values)
                     {
@@ -162,7 +165,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                         // pull all data before the frontier time
                         while (reader.Current.EndTime <= frontier)
                         {
-                            yield return reader.Current;
+                            collection.Data.Add(reader.Current);
 
                             // advance the reader and remove finished zip entries
                             if (!reader.MoveNext())
@@ -178,6 +181,8 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                             nextFrontier = Math.Min(reader.Current.EndTime.Ticks, nextFrontier);
                         }
                     }
+
+                    yield return collection;
 
                     // if we didn't set a next frontier means we're out of data for all zip entries
                     if (nextFrontier == DateTime.MaxValue.Ticks)

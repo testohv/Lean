@@ -160,6 +160,7 @@
     <Compile Include="Engine\DataFeeds\Enumerators\LiveFillForwardEnumeratorTests.cs" />
     <Compile Include="Engine\DataFeeds\Enumerators\RateLimitEnumeratorTests.cs" />
     <Compile Include="Engine\DataFeeds\Enumerators\TradeBarBuilderEnumeratorTests.cs" />
+    <Compile Include="Engine\DataFeeds\EquityOptionSubscriptionDataReaderTests.cs" />
     <Compile Include="Engine\DataFeeds\FillForwardEnumeratorTest.cs" />
     <Compile Include="Engine\DataFeeds\MultipleZipEntrySubscriptionFactoryTests.cs" />
     <Compile Include="Engine\DataFeeds\RemoteFileBaseData.cs" />

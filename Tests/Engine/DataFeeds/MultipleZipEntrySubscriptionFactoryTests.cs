@@ -17,9 +17,11 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using NUnit.Framework;
 using QuantConnect.Data;
 using QuantConnect.Data.Market;
+using QuantConnect.Data.UniverseSelection;
 using QuantConnect.Lean.Engine.DataFeeds;
 
 namespace QuantConnect.Tests.Engine.DataFeeds
@@ -63,15 +65,29 @@ namespace QuantConnect.Tests.Engine.DataFeeds
         }
 
         [Test]
+        public void EmitsBaseDataCollections()
+        {
+            MultipleZipEntrySubscriptionFactory reader;
+            var source = CreateReader(out reader, TickZipFile, Resolution.Tick);
+            int count = 0;
+            foreach (var data in reader.Read(source))
+            {
+                count++;
+                Assert.That(data, Is.InstanceOf<BaseDataCollection>());
+            }
+            Assert.AreNotEqual(0, count);
+        }
+
+        [Test]
         public void FiltersZipEntries()
         {
             MultipleZipEntrySubscriptionFactory reader;
             var source = CreateReader(out reader, TickZipFile, Resolution.Tick);
             int count = 0;
             reader.SetSymbolFilter(sym => sym.ID.StrikePrice == 37m);
-            foreach (var data in reader.Read(source))
+            foreach (var data in reader.Read(source).OfType<BaseDataCollection>())
             {
-                Assert.AreEqual(37m, data.Symbol.ID.StrikePrice);
+                foreach (var d in data.Data) Assert.AreEqual(37m, d.Symbol.ID.StrikePrice);
                 count++;
             }
             Assert.AreNotEqual(0, count);
@@ -93,12 +109,12 @@ namespace QuantConnect.Tests.Engine.DataFeeds
                 return false;
             });
             var symbols = new HashSet<Symbol>();
-            foreach (var data in reader.Read(source))
+            foreach (var data in reader.Read(source).OfType<BaseDataCollection>())
             {
                 // verifying that time is always moving forward, we fast-forwarded the skipped entries
                 Assert.That(data.EndTime, Is.GreaterThanOrEqualTo(previous));
                 count++;
-                symbols.Add(data.Symbol);
+                foreach (var d in data.Data) symbols.Add(d.Symbol);
             }
             Assert.AreEqual(3, symbols.Count);
             Assert.AreNotEqual(0, count);

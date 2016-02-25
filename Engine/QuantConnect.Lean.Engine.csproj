@@ -183,6 +183,7 @@
     <Compile Include="DataFeeds\Enumerators\RefreshEnumerator.cs" />
     <Compile Include="DataFeeds\Enumerators\SubscriptionFilterEnumerator.cs" />
     <Compile Include="DataFeeds\Enumerators\TradeBarBuilderEnumerator.cs" />
+    <Compile Include="DataFeeds\EquityOptionSubscriptionDataReader.cs" />
     <Compile Include="DataFeeds\ITimeProvider.cs" />
     <Compile Include="DataFeeds\ManualTimeProvider.cs" />
     <Compile Include="DataFeeds\MultipleZipEntrySubscriptionFactory.cs" />

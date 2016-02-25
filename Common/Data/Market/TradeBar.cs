@@ -453,7 +453,7 @@ namespace QuantConnect.Data.Market
             }
 
             var source = LeanData.GenerateZipFilePath(Constants.DataFolder, config.Symbol, date, config.Resolution, config.TickType);
-            return new SubscriptionDataSource(source, SubscriptionTransportMedium.LocalFile, FileFormat.Csv);
+            return new SubscriptionDataSource(source, SubscriptionTransportMedium.LocalFile, config.SecurityType == SecurityType.Option ? FileFormat.MultipleTextZipEntry : FileFormat.Csv);
         }
 
         /// <summary>

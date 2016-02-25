@@ -37,6 +37,11 @@ namespace QuantConnect.Tests
 
         public static readonly Symbol SPY_P_192_Feb19_2016 = CreateOptionSymbol("SPY", OptionRight.Put, 192m, new DateTime(2016, 02, 19));
 
+        public static class CanonicalOption
+        {
+            public static readonly Symbol GOOG = Symbol.CreateOption("GOOG", Market.USA, OptionStyle.American, OptionRight.Put, 0, SecurityIdentifier.DefaultDate);
+        }
+
         private static Symbol CreateForexSymbol(string symbol)
         {
             return Symbol.Create(symbol, SecurityType.Forex, Market.FXCM);
