@@ -23,6 +23,7 @@ using QuantConnect.Data.Auxiliary;
 using QuantConnect.Data.Market;
 using QuantConnect.Data.UniverseSelection;
 using QuantConnect.Logging;
+using QuantConnect.Securities;
 using QuantConnect.Util;
 
 namespace QuantConnect.Lean.Engine.DataFeeds
@@ -59,7 +60,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
         private readonly BaseData _tradesGetSourceFactory;
         private readonly BaseData _quotesGetSourceFactory;
 
-        private readonly Func<Symbol, BaseData, bool> _symbolFilter;
+        private readonly IDerivativeSecurityFilter _symbolFilter;
 
         // data for option chain
         private BaseData _underlying;
@@ -101,7 +102,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             DateTime periodFinish,
             MapFileResolver mapFileResolver,
             IEnumerator<DateTime> tradeableDates,
-            Func<Symbol, BaseData, bool> symbolFilter,
+            IDerivativeSecurityFilter symbolFilter,
             bool isLiveMode)
         {
             _config = config;
@@ -326,7 +327,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             if (subscriptionFactory is MultipleZipEntrySubscriptionFactory)
             {
                 var multizip = (MultipleZipEntrySubscriptionFactory) subscriptionFactory;
-                multizip.SetSymbolFilter(sym => _symbolFilter(sym, _underlying));
+                multizip.SetSymbolFilter(symbols => _symbolFilter.Filter(symbols, _underlying));
             }
             var enumerator = subscriptionFactory.Read(source).GetEnumerator();
             return new Reader(enumerator);

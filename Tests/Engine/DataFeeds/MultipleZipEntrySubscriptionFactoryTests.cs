@@ -84,7 +84,7 @@ namespace QuantConnect.Tests.Engine.DataFeeds
             MultipleZipEntrySubscriptionFactory reader;
             var source = CreateReader(out reader, TickZipFile, Resolution.Tick);
             int count = 0;
-            reader.SetSymbolFilter(sym => sym.ID.StrikePrice == 37m);
+            reader.SetSymbolFilter(syms => syms.Where(x => x.ID.StrikePrice == 37m));
             foreach (var data in reader.Read(source).OfType<BaseDataCollection>())
             {
                 foreach (var d in data.Data) Assert.AreEqual(37m, d.Symbol.ID.StrikePrice);
@@ -100,13 +100,12 @@ namespace QuantConnect.Tests.Engine.DataFeeds
             var source = CreateReader(out reader, TickZipFile, Resolution.Tick);
             int count = 0;
             var previous = DateTime.MinValue;
-            reader.SetSymbolFilter(sym =>
+            reader.SetSymbolFilter(syms =>
             {
-                if (count == 0) return true;
-                if (count%4 == 0 && sym.ID.StrikePrice == 22m) return true;
-                if (count%3 == 0 && sym.ID.StrikePrice == 21m) return true;
-                if (count%2 == 0 && sym.ID.StrikePrice == 37m) return true;
-                return false;
+                if (count == 0) return syms;
+                if (count%4 == 0) return syms.Where(x => x.ID.StrikePrice == 22m);
+                if (count%3 == 0) return syms.Where(x => x.ID.StrikePrice == 21m);
+                return syms.Where(x => x.ID.StrikePrice == 37m);
             });
             var symbols = new HashSet<Symbol>();
             foreach (var data in reader.Read(source).OfType<BaseDataCollection>())

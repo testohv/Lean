@@ -25,6 +25,7 @@ using QuantConnect.Data;
 using QuantConnect.Data.Market;
 using QuantConnect.Data.UniverseSelection;
 using QuantConnect.Logging;
+using QuantConnect.Util;
 
 namespace QuantConnect.Lean.Engine.DataFeeds
 {
@@ -34,7 +35,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
     /// </summary>
     public class MultipleZipEntrySubscriptionFactory : ISubscriptionFactory
     {
-        private Func<Symbol, bool> _filter;
+        private Func<IEnumerable<Symbol>, IEnumerable<Symbol>> _filter;
 
         private readonly DateTime _date;
         private readonly bool _isLiveMode;
@@ -62,14 +63,14 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             _zipEntryToSymbol = zipEntryToSymbol;
 
             // default to read everything
-            _filter = x => true;
+            _filter = x => x;
         }
 
         /// <summary>
         /// Sets the symbol filter. This will prevent reading zip entries who don't match the specified filter
         /// </summary>
         /// <param name="filter">The filter function</param>
-        public void SetSymbolFilter(Func<Symbol, bool> filter)
+        public void SetSymbolFilter(Func<IEnumerable<Symbol>, IEnumerable<Symbol>> filter)
         {
             if (filter == null) throw new ArgumentNullException("filter");
             _filter = filter;
@@ -128,7 +129,6 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                 }
 
                 var frontier = readers.Values.Select(x => x.Current.EndTime).DefaultIfEmpty(DateTime.MinValue).Min();
-
                 // if there was no data, break immediately
                 if (frontier == DateTime.MinValue)
                 {
@@ -137,14 +137,16 @@ namespace QuantConnect.Lean.Engine.DataFeeds
 
                 var previousFrontier = frontier;
                 var removedZipEntries = new List<ZipEntryReader>();
+                var symbols = readers.Values.Select(x => x.Symbol).ToList();
                 while (readers.Count > 0)
                 {
                     var collection = new BaseDataCollection(frontier, _config.Symbol);
                     var nextFrontier = DateTime.MaxValue.Ticks;
+                    var filteredSymbols = _filter(symbols).ToHashSet();
                     foreach (var reader in readers.Values)
                     {
                         // verify the reader matches our filter
-                        if (!_filter(reader.Symbol))
+                        if (!filteredSymbols.Contains(reader.Symbol))
                         {
                             reader.RequiresFastForward = true;
                             continue;

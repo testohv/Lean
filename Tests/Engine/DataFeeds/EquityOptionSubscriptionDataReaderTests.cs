@@ -26,6 +26,7 @@ using QuantConnect.Data.Auxiliary;
 using QuantConnect.Data.Market;
 using QuantConnect.Data.UniverseSelection;
 using QuantConnect.Lean.Engine.DataFeeds;
+using QuantConnect.Securities;
 using QuantConnect.Util;
 
 namespace QuantConnect.Tests.Engine.DataFeeds
@@ -41,7 +42,8 @@ namespace QuantConnect.Tests.Engine.DataFeeds
             var tradeableDates = new List<DateTime>{start}.GetEnumerator();
             var config = CreateConfig();
 
-            var reader = new EquityOptionSubscriptionDataReader(config, start, end, MapFileResolver.Empty, tradeableDates, (sym, underlyingPrice) => true, false);
+            var filter = new FuncDerivativeSecurityFilter((syms, underlying) => syms);
+            var reader = new EquityOptionSubscriptionDataReader(config, start, end, MapFileResolver.Empty, tradeableDates, filter, false);
 
             var previous = DateTime.MinValue;
             var stopwatch = Stopwatch.StartNew();
@@ -64,8 +66,8 @@ namespace QuantConnect.Tests.Engine.DataFeeds
 
             // require contracts with strikes within 5 dollars of the underlying
             var plusMinusStrikeDollars = 5m;
-            Func<Symbol, BaseData, bool> symbolFilter = (sym, underlying) => Math.Abs(sym.ID.StrikePrice - underlying.Price) <= plusMinusStrikeDollars && sym.ID.Date - underlying.EndTime < TimeSpan.FromDays(18);
-            var reader = new EquityOptionSubscriptionDataReader(config, start, end, MapFileResolver.Empty, tradeableDates, symbolFilter, false);
+            var filter = new StrikeExpiryOptionFilter(-2, 2, TimeSpan.Zero, TimeSpan.FromDays(18)); // strikes are 2.5 dollars
+            var reader = new EquityOptionSubscriptionDataReader(config, start, end, MapFileResolver.Empty, tradeableDates, filter, false);
 
             var stopwatch = Stopwatch.StartNew();
             while (reader.MoveNext())
