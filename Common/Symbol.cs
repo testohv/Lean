@@ -38,7 +38,7 @@ namespace QuantConnect
         /// This method currently does not support Option, Commodity, and Future
         /// </summary>
         /// <param name="ticker">The string ticker symbol</param>
-        /// <param name="securityType">The security type of the ticker</param>
+        /// <param name="securityType">The security type of the ticker. If securityType == Option, then a canonical symbol is created</param>
         /// <param name="market">The market the ticker resides in</param>
         /// <param name="alias">An alias to be used for the symbol cache. Required when
         /// adding the same security from different markets</param>
@@ -61,7 +61,9 @@ namespace QuantConnect
                     sid = SecurityIdentifier.GenerateCfd(ticker, market);
                     break;
                 case SecurityType.Option:
-                    throw new NotSupportedException("This method does not support SecurityType.Option. Please invoke Symbol.CreateOption instead.");
+                    alias = alias ?? "?" + ticker.ToUpper();
+                    sid = SecurityIdentifier.GenerateOption(SecurityIdentifier.DefaultDate, ticker, market, 0, default(OptionRight), default(OptionStyle));
+                    break;
                 case SecurityType.Commodity:
                 case SecurityType.Future:
                 default:
