@@ -67,6 +67,13 @@ namespace QuantConnect.Data.Market
         }
 
         /// <summary>
+        /// Initializes a new default instance of the <see cref="OptionChain"/> class
+        /// </summary>
+        private OptionChain()
+        {
+        }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="OptionChain"/> class
         /// </summary>
         /// <param name="canonicalOptionSymbol">The symbol for this chain.</param>
@@ -153,6 +160,26 @@ namespace QuantConnect.Data.Market
         IEnumerator IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
+        }
+
+        /// <summary>
+        /// Return a new instance clone of this object, used in fill forward
+        /// </summary>
+        /// <returns>A clone of the current object</returns>
+        public override BaseData Clone()
+        {
+            return new OptionChain
+            {
+                Underlying = Underlying,
+                Ticks = Ticks,
+                Contracts = Contracts,
+                QuoteBars = QuoteBars,
+                TradeBars = TradeBars,
+                Symbol = Symbol,
+                Time = Time,
+                DataType = DataType,
+                Value = Value
+            };
         }
     }
 }
