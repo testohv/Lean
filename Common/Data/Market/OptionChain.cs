@@ -71,6 +71,7 @@ namespace QuantConnect.Data.Market
         /// </summary>
         private OptionChain()
         {
+            DataType = MarketDataType.OptionChain;
         }
 
         /// <summary>
@@ -87,6 +88,8 @@ namespace QuantConnect.Data.Market
             Time = time;
             Underlying = underlying;
             Symbol = canonicalOptionSymbol;
+            DataType = MarketDataType.OptionChain;
+
             Ticks = new Ticks(time);
             TradeBars = new TradeBars(time);
             QuoteBars = new QuoteBars(time);
