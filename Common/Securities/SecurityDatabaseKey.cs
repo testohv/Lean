@@ -7,7 +7,7 @@ namespace QuantConnect.Securities
     /// </summary>
     public class SecurityDatabaseKey : IEquatable<SecurityDatabaseKey>
     {
-        private const string Wildcard = "[*]";
+        public const string Wildcard = "[*]";
 
         /// <summary>
         /// The market. If null, ignore market filtering
@@ -31,7 +31,7 @@ namespace QuantConnect.Securities
         {
             Market = market;
             SecurityType = securityType;
-            Symbol = symbol;
+            Symbol = string.IsNullOrEmpty(symbol) ? Wildcard : symbol;
         }
 
         /// <summary>
@@ -52,13 +52,7 @@ namespace QuantConnect.Securities
                 throw new ArgumentException("Unable to parse '" + parts[2] + "' as a SecurityType.");
             }
 
-            var market = parts[1];
-            if (market == Wildcard) market = null;
-
-            var symbol = parts[2];
-            if (symbol == Wildcard) symbol = null;
-
-            return new SecurityDatabaseKey(market, symbol, type);
+            return new SecurityDatabaseKey(parts[1], parts[2], type);
         }
 
         #region Equality members
