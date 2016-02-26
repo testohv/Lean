@@ -125,6 +125,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             var splits = new Splits(algorithmTime);
             var dividends = new Dividends(algorithmTime);
             var delistings = new Delistings(algorithmTime);
+            var optionChains = new OptionChains(algorithmTime);
             var symbolChanges = new SymbolChangedEvents(algorithmTime);
 
             foreach (var kvp in data)
@@ -177,6 +178,10 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                             {
                                 tradeBars[symbol] = (TradeBar) baseData;
                             }
+                            else if (baseData.DataType == MarketDataType.OptionChain)
+                            {
+                                optionChains[symbol] = (OptionChain) baseData;
+                            }
 
                             // this is data used to update consolidators
                             consolidatorUpdate.Add(baseData);
@@ -224,7 +229,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                 consolidator.Add(new KeyValuePair<SubscriptionDataConfig, List<BaseData>>(kvp.Key.SubscriptionDataConfig, consolidatorUpdate));
             }
 
-            var slice = new Slice(algorithmTime, allDataForAlgorithm, tradeBars, ticks, splits, dividends, delistings, symbolChanges, allDataForAlgorithm.Count > 0);
+            var slice = new Slice(algorithmTime, allDataForAlgorithm, tradeBars, ticks, optionChains, splits, dividends, delistings, symbolChanges, allDataForAlgorithm.Count > 0);
 
             return new TimeSlice(utcDateTime, count, slice, data, cash, security, consolidator, custom, changes);
         }
