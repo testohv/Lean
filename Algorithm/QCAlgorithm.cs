@@ -32,6 +32,7 @@ using QuantConnect.Securities;
 using QuantConnect.Securities.Cfd;
 using QuantConnect.Securities.Equity;
 using QuantConnect.Securities.Forex;
+using QuantConnect.Securities.Option;
 using QuantConnect.Statistics;
 using QuantConnect.Util;
 using SecurityTypeMarket = System.Tuple<QuantConnect.SecurityType, string>;
@@ -1213,6 +1214,20 @@ namespace QuantConnect.Algorithm
         }
 
         /// <summary>
+        /// Creates and adds a new equity <see cref="Option"/> security to the algorithm
+        /// </summary>
+        /// <param name="underlying">The underlying equity symbol</param>
+        /// <param name="resolution">The <see cref="Resolution"/> of market data, Tick, Second, Minute, Hour, or Daily. Default is <see cref="Resolution.Minute"/></param>
+        /// <param name="market">The equity's market, <seealso cref="Market"/>. Default is <see cref="Market.USA"/></param>
+        /// <param name="fillDataForward">If true, returns the last available data even if none in that timeslice. Default is <value>true</value></param>
+        /// <param name="leverage">The requested leverage for this equity. Default is set by <see cref="SecurityInitializer"/></param>
+        /// <returns>The new <see cref="Option"/> security</returns>
+        public Option AddOption(string underlying, Resolution resolution = Resolution.Minute, string market = Market.USA, bool fillDataForward = true, decimal leverage = 0m)
+        {
+            return AddSecurity<Option>(SecurityType.Option, underlying, resolution, market, fillDataForward, leverage, false, "?" + underlying);
+        }
+
+        /// <summary>
         /// Creates and adds a new <see cref="Forex"/> security to the algorithm
         /// </summary>
         /// <param name="ticker">The currency pair</param>
@@ -1422,7 +1437,7 @@ namespace QuantConnect.Algorithm
         /// <summary>
         /// Creates and adds a new <see cref="Security"/> to the algorithm
         /// </summary>
-        private T AddSecurity<T>(SecurityType securityType, string ticker, Resolution resolution, string market, bool fillDataForward, decimal leverage, bool extendedMarketHours)
+        private T AddSecurity<T>(SecurityType securityType, string ticker, Resolution resolution, string market, bool fillDataForward, decimal leverage, bool extendedMarketHours, string alias = null)
             where T : Security
         {
             if (market == null)
@@ -1434,9 +1449,9 @@ namespace QuantConnect.Algorithm
             }
 
             Symbol symbol;
-            if (!SymbolCache.TryGetSymbol(ticker, out symbol))
+            if (!SymbolCache.TryGetSymbol(alias ?? ticker, out symbol))
             {
-                symbol = QuantConnect.Symbol.Create(ticker, securityType, market);
+                symbol = QuantConnect.Symbol.Create(ticker, securityType, market, alias);
             }
 
             var security = SecurityManager.CreateSecurity(Portfolio, SubscriptionManager, _marketHoursDatabase, _symbolPropertiesDatabase, SecurityInitializer,

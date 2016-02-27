@@ -338,6 +338,10 @@ namespace QuantConnect.Securities
                     security = new Equity.Equity(exchangeHours, config, securityPortfolioManager.CashBook[CashBook.AccountCurrency], symbolProperties);
                     break;
 
+                case SecurityType.Option:
+                    security = new Option.Option(exchangeHours, config, securityPortfolioManager.CashBook[CashBook.AccountCurrency], symbolProperties);
+                    break;
+
                 case SecurityType.Forex:
                     {
                         // decompose the symbol into each currency pair
