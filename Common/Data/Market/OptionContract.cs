@@ -58,6 +58,14 @@ namespace QuantConnect.Data.Market
         }
 
         /// <summary>
+        /// Gets the right being purchased (call [right to buy] or put [right to sell])
+        /// </summary>
+        public OptionRight Right
+        {
+            get { return Symbol.ID.OptionRight; }
+        }
+
+        /// <summary>
         /// Gets or sets the greeks for this contract
         /// </summary>
         public FirstOrderGreeks Greeks
