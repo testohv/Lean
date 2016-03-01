@@ -50,6 +50,10 @@ namespace QuantConnect.Securities
             _minExpiry = minExpiry;
             _maxExpiry = maxExpiry;
 
+            // prevent parameter mistakes that would prevent all contracts from coming through
+            if (maxStrike < minStrike) throw new ArgumentException("maxStrike must be greater than minStrike");
+            if (maxExpiry < minExpiry) throw new ArgumentException("maxExpiry must be greater than minExpiry");
+
             // protect from overflow on additions
             if (_maxExpiry > Time.MaxTimeSpan) _maxExpiry = Time.MaxTimeSpan;
         }
