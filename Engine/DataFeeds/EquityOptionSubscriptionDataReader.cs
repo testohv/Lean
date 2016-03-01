@@ -312,7 +312,9 @@ namespace QuantConnect.Lean.Engine.DataFeeds
         /// </summary>
         public void Dispose()
         {
-            throw new NotImplementedException();
+            if (_equityReader != null) _equityReader.Dispose();
+            if (_tradesReader != null) _tradesReader.Dispose();
+            if (_quotesReader != null) _quotesReader.Dispose();
         }
 
         private Reader CreateReader(BaseData getSourceFactory, SubscriptionDataConfig config, DateTime date)
@@ -383,7 +385,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             return 0L;
         }
 
-        class Reader
+        class Reader : IDisposable
         {
             private bool _needsMoveNext;
             private bool _eos;
@@ -466,6 +468,14 @@ namespace QuantConnect.Lean.Engine.DataFeeds
 
                 _needsMoveNext = false;
                 return true;
+            }
+
+            /// <summary>
+            /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+            /// </summary>
+            public void Dispose()
+            {
+                _enumerator.Dispose();
             }
         }
     }
