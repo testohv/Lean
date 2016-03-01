@@ -24,6 +24,7 @@ using QuantConnect.Data.Market;
 using QuantConnect.Data.UniverseSelection;
 using QuantConnect.Logging;
 using QuantConnect.Securities;
+using QuantConnect.Securities.Option;
 using QuantConnect.Util;
 
 namespace QuantConnect.Lean.Engine.DataFeeds
@@ -60,7 +61,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
         private readonly BaseData _tradesGetSourceFactory;
         private readonly BaseData _quotesGetSourceFactory;
 
-        private readonly IDerivativeSecurityFilter _symbolFilter;
+        private readonly Option _option;
 
         // data for option chain
         private BaseData _underlying;
@@ -90,28 +91,22 @@ namespace QuantConnect.Lean.Engine.DataFeeds
         /// <summary>
         /// Initializes a new instance of the <see cref="EquityOptionSubscriptionDataReader"/> class
         /// </summary>
-        /// <param name="config">The options configuration</param>
+        /// <param name="option">The option security</param>
         /// <param name="periodStart">Start time filter, don't emit data before this time</param>
         /// <param name="periodFinish">End time filter, don't emit data after thi time</param>
         /// <param name="mapFileResolver">Map file resolver instance used to resolve symbol changes</param>
         /// <param name="tradeableDates">The tradeable dates to be processed</param>
-        /// <param name="symbolFilter"></param>
-        /// <param name="isLiveMode"></param>
-        public EquityOptionSubscriptionDataReader(SubscriptionDataConfig config,
-            DateTime periodStart,
-            DateTime periodFinish,
-            MapFileResolver mapFileResolver,
-            IEnumerator<DateTime> tradeableDates,
-            IDerivativeSecurityFilter symbolFilter,
-            bool isLiveMode)
+        /// <param name="isLiveMode">True for live mode, false otherwise</param>
+        public EquityOptionSubscriptionDataReader(Option option, DateTime periodStart, DateTime periodFinish, MapFileResolver mapFileResolver, IEnumerator<DateTime> tradeableDates, bool isLiveMode)
         {
+            var config = option.SubscriptionDataConfig;
             _config = config;
             _periodStart = periodStart;
             _periodFinish = periodFinish;
             _mapFileResolver = mapFileResolver;
             _tradeableDates = tradeableDates;
             _isLiveMode = isLiveMode;
-            _symbolFilter = symbolFilter;
+            _option = option;
 
             _mapFile = new MapFile(config.Symbol.Value, new List<MapFileRow>());
 
@@ -327,7 +322,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             if (subscriptionFactory is MultipleZipEntrySubscriptionFactory)
             {
                 var multizip = (MultipleZipEntrySubscriptionFactory) subscriptionFactory;
-                multizip.SetSymbolFilter(symbols => _symbolFilter.Filter(symbols, _underlying));
+                multizip.SetSymbolFilter(symbols => _option.Filter.Filter(symbols, _underlying));
             }
             var enumerator = subscriptionFactory.Read(source).GetEnumerator();
             return new Reader(enumerator);

@@ -27,6 +27,7 @@ using QuantConnect.Data.Market;
 using QuantConnect.Data.UniverseSelection;
 using QuantConnect.Lean.Engine.DataFeeds;
 using QuantConnect.Securities;
+using QuantConnect.Securities.Option;
 using QuantConnect.Util;
 
 namespace QuantConnect.Tests.Engine.DataFeeds
@@ -42,8 +43,9 @@ namespace QuantConnect.Tests.Engine.DataFeeds
             var tradeableDates = new List<DateTime>{start}.GetEnumerator();
             var config = CreateConfig();
 
-            var filter = new FuncDerivativeSecurityFilter((syms, underlying) => syms);
-            var reader = new EquityOptionSubscriptionDataReader(config, start, end, MapFileResolver.Empty, tradeableDates, filter, false);
+            var option = new Option(SecurityExchangeHours.AlwaysOpen(TimeZones.NewYork), config, new Cash("USD", 0, 1m), SymbolProperties.GetDefault("USD"));
+            option.Filter = new FuncDerivativeSecurityFilter((syms, underlying) => syms);
+            var reader = new EquityOptionSubscriptionDataReader(option, start, end, MapFileResolver.Empty, tradeableDates, false);
 
             var previous = DateTime.MinValue;
             var stopwatch = Stopwatch.StartNew();
@@ -66,8 +68,9 @@ namespace QuantConnect.Tests.Engine.DataFeeds
 
             // require contracts with strikes within 5 dollars of the underlying
             var plusMinusStrikeDollars = 5m;
-            var filter = new StrikeExpiryOptionFilter(-2, 2, TimeSpan.Zero, TimeSpan.FromDays(18)); // strikes are 2.5 dollars
-            var reader = new EquityOptionSubscriptionDataReader(config, start, end, MapFileResolver.Empty, tradeableDates, filter, false);
+            var option = new Option(SecurityExchangeHours.AlwaysOpen(TimeZones.NewYork), config, new Cash("USD", 0, 1m), SymbolProperties.GetDefault("USD"));
+            option.Filter = new StrikeExpiryOptionFilter(-2, 2, TimeSpan.Zero, TimeSpan.FromDays(18));
+            var reader = new EquityOptionSubscriptionDataReader(option, start, end, MapFileResolver.Empty, tradeableDates, false);
 
             var stopwatch = Stopwatch.StartNew();
             while (reader.MoveNext())
