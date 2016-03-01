@@ -159,7 +159,7 @@ namespace QuantConnect.Data.Market
         /// </returns>
         public override string ToString()
         {
-            return string.Format("{0}{1}{2}{3:00000000}", Symbol.ID.Symbol, Expiry.ToString("yyyMMdd"), Right.ToString()[0], Strike*1000m);
+            return string.Format("{0}{1}{2}{3:00000000}", Symbol.ID.Symbol, Expiry.ToString(DateFormat.EightCharacter), Right.ToString()[0], Strike*1000m);
         }
     }
 }

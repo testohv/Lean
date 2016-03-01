@@ -215,7 +215,7 @@ namespace QuantConnect
 
         private static string FormatOptionSymbol(SecurityIdentifier securityIdentifier)
         {
-            return string.Format("{0}{1}{2}{3:00000000}", securityIdentifier.Symbol, securityIdentifier.Date.ToString("yyyMMdd"), securityIdentifier.OptionRight.ToString()[0], securityIdentifier.StrikePrice*1000m);
+            return string.Format("{0}{1}{2}{3:00000000}", securityIdentifier.Symbol, securityIdentifier.Date.ToString(DateFormat.EightCharacter), securityIdentifier.OptionRight.ToString()[0], securityIdentifier.StrikePrice*1000m);
         }
 
         #endregion
