@@ -49,19 +49,19 @@ namespace QuantConnect.Securities.Option
                 new OptionDataFilter()
                 )
         {
-            Filter = new StrikeExpiryOptionFilter(-5, 5, TimeSpan.Zero, TimeSpan.FromDays(35));
+            ContractFilter = new StrikeExpiryOptionFilter(-5, 5, TimeSpan.Zero, TimeSpan.FromDays(35));
         }
 
         /// <summary>
         /// Gets or sets the contract filter
         /// </summary>
-        public IDerivativeSecurityFilter Filter
+        public IDerivativeSecurityFilter ContractFilter
         {
             get; set;
         }
 
         /// <summary>
-        /// Sets the <see cref="Filter"/> to a new instance of the <see cref="StrikeExpiryOptionFilter"/>
+        /// Sets the <see cref="ContractFilter"/> to a new instance of the <see cref="StrikeExpiryOptionFilter"/>
         /// using the specified min and max strike values. Contracts with expirations further than 35
         /// days out will also be filtered.
         /// </summary>
@@ -77,7 +77,7 @@ namespace QuantConnect.Securities.Option
         }
 
         /// <summary>
-        /// Sets the <see cref="Filter"/> to a new instance of the <see cref="StrikeExpiryOptionFilter"/>
+        /// Sets the <see cref="ContractFilter"/> to a new instance of the <see cref="StrikeExpiryOptionFilter"/>
         /// using the specified min and max strike and expiration range alues
         /// </summary>
         /// <param name="minStrike">The min strike rank relative to market price, for example, -1 would put
@@ -92,7 +92,7 @@ namespace QuantConnect.Securities.Option
         /// would exclude contracts expiring in more than 10 days</param>
         public void SetFilter(int minStrike, int maxStrike, TimeSpan minExpiry, TimeSpan maxExpiry)
         {
-            Filter = new StrikeExpiryOptionFilter(minStrike, maxStrike, minExpiry, maxExpiry);
+            ContractFilter = new StrikeExpiryOptionFilter(minStrike, maxStrike, minExpiry, maxExpiry);
         }
     }
 }

@@ -44,7 +44,7 @@ namespace QuantConnect.Tests.Engine.DataFeeds
             var config = CreateConfig();
 
             var option = new Option(SecurityExchangeHours.AlwaysOpen(TimeZones.NewYork), config, new Cash("USD", 0, 1m), SymbolProperties.GetDefault("USD"));
-            option.Filter = new FuncDerivativeSecurityFilter((syms, underlying) => syms);
+            option.ContractFilter = new FuncDerivativeSecurityFilter((syms, underlying) => syms);
             var reader = new EquityOptionSubscriptionDataReader(option, start, end, MapFileResolver.Empty, tradeableDates, false);
 
             var previous = DateTime.MinValue;
@@ -69,7 +69,7 @@ namespace QuantConnect.Tests.Engine.DataFeeds
             // require contracts with strikes within 5 dollars of the underlying
             var plusMinusStrikeDollars = 5m;
             var option = new Option(SecurityExchangeHours.AlwaysOpen(TimeZones.NewYork), config, new Cash("USD", 0, 1m), SymbolProperties.GetDefault("USD"));
-            option.Filter = new StrikeExpiryOptionFilter(-2, 2, TimeSpan.Zero, TimeSpan.FromDays(18));
+            option.ContractFilter = new StrikeExpiryOptionFilter(-2, 2, TimeSpan.Zero, TimeSpan.FromDays(18));
             var reader = new EquityOptionSubscriptionDataReader(option, start, end, MapFileResolver.Empty, tradeableDates, false);
 
             var stopwatch = Stopwatch.StartNew();

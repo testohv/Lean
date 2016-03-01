@@ -322,7 +322,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             if (subscriptionFactory is MultipleZipEntrySubscriptionFactory)
             {
                 var multizip = (MultipleZipEntrySubscriptionFactory) subscriptionFactory;
-                multizip.SetSymbolFilter(symbols => _option.Filter.Filter(symbols, _underlying));
+                multizip.SetSymbolFilter(symbols => _option.ContractFilter.Filter(symbols, _underlying));
             }
             var enumerator = subscriptionFactory.Read(source).GetEnumerator();
             return new Reader(enumerator);
