@@ -65,6 +65,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
 
         // data for option chain
         private BaseData _underlying;
+        private IEnumerable<Symbol> _filteredSymbols;
 
         /// <summary>
         /// Gets the element in the collection at the current position of the enumerator.
@@ -233,7 +234,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                 }
             }
 
-            var chain = new OptionChain(_config.Symbol, _frontier, _underlying, trades.Data, quotes.Data, contracts.Values);
+            var chain = new OptionChain(_config.Symbol, _frontier, _underlying, trades.Data, quotes.Data, contracts.Values, _filteredSymbols);
             Current = chain;
 
             // find the next frontier time
@@ -324,7 +325,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             if (subscriptionFactory is MultipleZipEntrySubscriptionFactory)
             {
                 var multizip = (MultipleZipEntrySubscriptionFactory) subscriptionFactory;
-                multizip.SetSymbolFilter(symbols => _option.ContractFilter.Filter(symbols, _underlying));
+                multizip.SetSymbolFilter(symbols => _filteredSymbols = _option.ContractFilter.Filter(symbols, _underlying));
             }
             var enumerator = subscriptionFactory.Read(source).GetEnumerator();
             return new Reader(enumerator);

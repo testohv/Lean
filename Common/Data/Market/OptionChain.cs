@@ -16,6 +16,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using QuantConnect.Securities.Option;
 
 namespace QuantConnect.Data.Market
 {
@@ -67,6 +69,14 @@ namespace QuantConnect.Data.Market
         }
 
         /// <summary>
+        /// Gets the set of symbols that passed the <see cref="Option.ContractFilter"/>
+        /// </summary>
+        public IReadOnlyList<Symbol> FilteredContracts
+        {
+            get; private set;
+        }
+
+        /// <summary>
         /// Initializes a new default instance of the <see cref="OptionChain"/> class
         /// </summary>
         private OptionChain()
@@ -83,12 +93,13 @@ namespace QuantConnect.Data.Market
         /// <param name="trades">All trade data for the entire option chain</param>
         /// <param name="quotes">All quote data for the entire option chain</param>
         /// <param name="contracts">All contrains for this option chain</param>
-        public OptionChain(Symbol canonicalOptionSymbol, DateTime time, BaseData underlying, IEnumerable<BaseData> trades, IEnumerable<BaseData> quotes, IEnumerable<OptionContract> contracts)
+        public OptionChain(Symbol canonicalOptionSymbol, DateTime time, BaseData underlying, IEnumerable<BaseData> trades, IEnumerable<BaseData> quotes, IEnumerable<OptionContract> contracts, IEnumerable<Symbol> filteredContracts)
         {
             Time = time;
             Underlying = underlying;
             Symbol = canonicalOptionSymbol;
             DataType = MarketDataType.OptionChain;
+            FilteredContracts = filteredContracts.Distinct().ToList();
 
             Ticks = new Ticks(time);
             TradeBars = new TradeBars(time);
@@ -178,6 +189,7 @@ namespace QuantConnect.Data.Market
                 Contracts = Contracts,
                 QuoteBars = QuoteBars,
                 TradeBars = TradeBars,
+                FilteredContracts = FilteredContracts,
                 Symbol = Symbol,
                 Time = Time,
                 DataType = DataType,
