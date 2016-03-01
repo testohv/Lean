@@ -88,7 +88,7 @@ namespace QuantConnect
         public static Symbol CreateOption(string underlying, string market, OptionStyle style, OptionRight right, decimal strike, DateTime expiry, string alias = null)
         {
             var sid = SecurityIdentifier.GenerateOption(expiry, underlying, market, strike, right, style);
-            alias = alias ?? string.Format("{0}_{1}_{2}_{3}", underlying, right.ToString()[0], strike.SmartRounding(), expiry.ToString("yyyyMMdd"));
+            alias = alias ?? FormatOptionSymbol(sid);
             return new Symbol(sid, alias);
         }
 
@@ -205,7 +205,17 @@ namespace QuantConnect
         /// <filterpriority>2</filterpriority>
         public override string ToString()
         {
+            // use special formatting for options
+            if (ID.SecurityType == SecurityType.Option)
+            {
+                return FormatOptionSymbol(ID);
+            }
             return SymbolCache.GetTicker(this);
+        }
+
+        private static string FormatOptionSymbol(SecurityIdentifier securityIdentifier)
+        {
+            return string.Format("{0}{1}{2}{3:00000000}", securityIdentifier.Symbol, securityIdentifier.Date.ToString("yyyMMdd"), securityIdentifier.OptionRight.ToString()[0], securityIdentifier.StrikePrice*1000m);
         }
 
         #endregion
