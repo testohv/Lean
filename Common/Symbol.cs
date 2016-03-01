@@ -205,11 +205,6 @@ namespace QuantConnect
         /// <filterpriority>2</filterpriority>
         public override string ToString()
         {
-            // use special formatting for options
-            if (ID.SecurityType == SecurityType.Option)
-            {
-                return FormatOptionSymbol(ID);
-            }
             return SymbolCache.GetTicker(this);
         }
 
