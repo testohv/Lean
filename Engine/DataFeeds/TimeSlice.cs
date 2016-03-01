@@ -16,11 +16,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using NodaTime;
 using QuantConnect.Data;
 using QuantConnect.Data.Market;
 using QuantConnect.Data.UniverseSelection;
 using QuantConnect.Securities;
+using QuantConnect.Util;
 
 namespace QuantConnect.Lean.Engine.DataFeeds
 {
@@ -181,7 +183,25 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                                     break;
 
                                 case MarketDataType.OptionChain:
-                                    optionChains[symbol] = (OptionChain) baseData;
+                                    var optionChain = (OptionChain) baseData;
+                                    var type = kvp.Key.SubscriptionDataConfig.Type;
+                                    count += optionChain.QuoteBars.Count + optionChain.TradeBars.Count + optionChain.Ticks.Count;
+                                    var optionsData = optionChain.Ticks.Values.SelectMany(x => x).Concat(optionChain.TradeBars.Values.Concat<BaseData>(optionChain.QuoteBars.Values));
+                                    foreach (var grp in optionsData.GroupBy(x => x.Symbol))
+                                    {
+                                        var cons = new KeyValuePair<SubscriptionDataConfig, List<BaseData>>(null, new List<BaseData>());
+                                        foreach (var bd in grp)
+                                        {
+                                            update = bd;
+                                            if (bd.GetType() == type)
+                                            {
+                                                cons.Value.Add(bd);
+                                            }
+                                        }
+                                        security.Add(new KeyValuePair<Security, BaseData>(null, update));
+                                        consolidator.Add(cons);
+                                    }
+                                    optionChains[symbol] = optionChain;
                                     break;
                             }
 
@@ -227,8 +247,14 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                     }
                 }
 
-                security.Add(new KeyValuePair<Security, BaseData>(kvp.Key, update));
-                consolidator.Add(new KeyValuePair<SubscriptionDataConfig, List<BaseData>>(kvp.Key.SubscriptionDataConfig, consolidatorUpdate));
+                if (update != null)
+                {
+                    security.Add(new KeyValuePair<Security, BaseData>(kvp.Key, update));
+                }
+                if (consolidatorUpdate != null)
+                {
+                    consolidator.Add(new KeyValuePair<SubscriptionDataConfig, List<BaseData>>(kvp.Key.SubscriptionDataConfig, consolidatorUpdate));
+                }
             }
 
             var slice = new Slice(algorithmTime, allDataForAlgorithm, tradeBars, ticks, optionChains, splits, dividends, delistings, symbolChanges, allDataForAlgorithm.Count > 0);

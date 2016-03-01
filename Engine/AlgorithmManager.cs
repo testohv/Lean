@@ -22,6 +22,7 @@ using Fasterflect;
 using QuantConnect.Algorithm;
 using QuantConnect.Configuration;
 using QuantConnect.Data;
+using QuantConnect.Data.Consolidators;
 using QuantConnect.Data.Market;
 using QuantConnect.Data.UniverseSelection;
 using QuantConnect.Interfaces;
@@ -308,12 +309,17 @@ namespace QuantConnect.Lean.Engine
                 //Update the securities properties: first before calling user code to avoid issues with data
                 foreach (var kvp in timeSlice.SecuritiesUpdateData)
                 {
-                    kvp.Key.SetMarketPrice(kvp.Value);
-
                     // Send market price updates to the TradeBuilder
                     if (kvp.Value != null)
                     {
-                        algorithm.TradeBuilder.SetMarketPrice(kvp.Key.Symbol, kvp.Value.Price);
+                        var security = kvp.Key;
+                        if (security == null && !_algorithm.Securities.TryGetValue(kvp.Value.Symbol, out security))
+                        {
+                            // couldn't resolve the security
+                            continue;
+                        }
+                        security.SetMarketPrice(kvp.Value);
+                        algorithm.TradeBuilder.SetMarketPrice(security.Symbol, kvp.Value.Price);
                     }
                 }
 
@@ -461,7 +467,23 @@ namespace QuantConnect.Lean.Engine
                 {
                     foreach (var kvp in timeSlice.ConsolidatorUpdateData)
                     {
-                        var consolidators = kvp.Key.Consolidators;
+                        HashSet<IDataConsolidator> consolidators = null;
+                        if (kvp.Key != null)
+                        {
+                            consolidators = kvp.Key.Consolidators;
+                        }
+                        else if (kvp.Value.Count > 0)
+                        {
+                            Security security;
+                            if (_algorithm.Securities.TryGetValue(kvp.Value[0].Symbol, out security))
+                            {
+                                consolidators = security.SubscriptionDataConfig.Consolidators;
+                            }
+                        }
+
+                        // couldn't find, or there are no registered consolidators for this data
+                        if (consolidators == null || consolidators.Count == 0) continue;
+
                         foreach (var dataPoint in kvp.Value)
                         {
                             foreach (var consolidator in consolidators)
