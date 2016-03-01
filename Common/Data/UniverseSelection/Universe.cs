@@ -35,6 +35,14 @@ namespace QuantConnect.Data.UniverseSelection
         private readonly ConcurrentDictionary<Symbol, Member> _securities;
 
         /// <summary>
+        /// Gets whether or not subscriptions should be added for new securities.
+        /// </summary>
+        public bool AddSubscriptions
+        {
+            get; private set;
+        }
+
+        /// <summary>
         /// Gets the security type of this universe
         /// </summary>
         public SecurityType SecurityType
@@ -88,11 +96,14 @@ namespace QuantConnect.Data.UniverseSelection
         /// </summary>
         /// <param name="config">The configuration used to source data for this universe</param>
         /// <param name="securityInitializer">Initializes securities when they're added to the universe</param>
-        protected Universe(SubscriptionDataConfig config, ISecurityInitializer securityInitializer = null)
+        /// <param name="addSubscriptions">True to add subscriptions for newly added securities, false otherwise. Some universes
+        /// only need the securities created</param>
+        protected Universe(SubscriptionDataConfig config, ISecurityInitializer securityInitializer = null, bool addSubscriptions = true)
         {
             _securities = new ConcurrentDictionary<Symbol, Member>();
 
             Configuration = config;
+            AddSubscriptions = addSubscriptions;
             SecurityInitializer = securityInitializer ?? Securities.SecurityInitializer.Null;
         }
 
