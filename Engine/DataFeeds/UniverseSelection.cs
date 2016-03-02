@@ -130,7 +130,7 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                         settings.ExtendedMarketHours,
                         false,
                         false,
-                        false);
+                        symbol.ID.SecurityType == SecurityType.Option); // add option symbols to the cache for better logging
                 }
 
                 if (!universe.Members.ContainsKey(symbol))
