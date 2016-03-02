@@ -18,6 +18,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using QuantConnect.Securities.Option;
+using QuantConnect.Util;
 
 namespace QuantConnect.Data.Market
 {
@@ -71,7 +72,7 @@ namespace QuantConnect.Data.Market
         /// <summary>
         /// Gets the set of symbols that passed the <see cref="Option.ContractFilter"/>
         /// </summary>
-        public IReadOnlyList<Symbol> FilteredContracts
+        public HashSet<Symbol> FilteredContracts
         {
             get; private set;
         }
@@ -99,7 +100,7 @@ namespace QuantConnect.Data.Market
             Underlying = underlying;
             Symbol = canonicalOptionSymbol;
             DataType = MarketDataType.OptionChain;
-            FilteredContracts = filteredContracts.Distinct().ToList();
+            FilteredContracts = filteredContracts.ToHashSet();
 
             Ticks = new Ticks(time);
             TradeBars = new TradeBars(time);
