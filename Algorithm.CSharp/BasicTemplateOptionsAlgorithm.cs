@@ -14,6 +14,7 @@
  *
 */
 
+using System;
 using System.Linq;
 using QuantConnect.Data;
 using QuantConnect.Data.Market;
@@ -37,8 +38,11 @@ namespace QuantConnect.Algorithm.CSharp
             SetEndDate(2015, 12, 24);
             SetCash(10000);
 
-            AddEquity(UnderlyingTicker);
-            AddOption(UnderlyingTicker);
+            //var equity = AddEquity(UnderlyingTicker);
+            var option = AddOption(UnderlyingTicker);
+
+            // set our strike/expiry filter for this option chain
+            option.SetFilter(-2, +2, TimeSpan.Zero, TimeSpan.FromDays(10));
         }
 
         /// <summary>
@@ -62,7 +66,8 @@ namespace QuantConnect.Algorithm.CSharp
 
                     if (contract != null)
                     {
-                        SetHoldings(contract.Symbol, 1);
+                        MarketOrder(contract.Symbol, -5);
+                        MarketOnCloseOrder(contract.Symbol, 5);
                     }
                 }
             }
