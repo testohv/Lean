@@ -22,6 +22,7 @@ using NodaTime.TimeZones;
 using QuantConnect.Benchmarks;
 using QuantConnect.Brokerages;
 using QuantConnect.Data;
+using QuantConnect.Data.Market;
 using QuantConnect.Data.UniverseSelection;
 using QuantConnect.Interfaces;
 using QuantConnect.Notifications;
@@ -1223,7 +1224,44 @@ namespace QuantConnect.Algorithm
         /// <returns>The new <see cref="Option"/> security</returns>
         public Option AddOption(string underlying, Resolution resolution = Resolution.Minute, string market = Market.USA, bool fillDataForward = true, decimal leverage = 0m)
         {
-            return AddSecurity<Option>(SecurityType.Option, underlying, resolution, market, fillDataForward, leverage, false, "?" + underlying);
+            if (market == null)
+            {
+                if (!BrokerageModel.DefaultMarkets.TryGetValue(SecurityType.Option, out market))
+                {
+                    throw new Exception("No default market set for security type: " + SecurityType.Option);
+                }
+            }
+
+            Symbol canonicalSymbol;
+            var alias = "?" + underlying;
+            if (!SymbolCache.TryGetSymbol(alias, out canonicalSymbol))
+            {
+                canonicalSymbol = QuantConnect.Symbol.Create(underlying, SecurityType.Option, market, alias);
+            }
+
+            var canonicalSecurity = (Option)SecurityManager.CreateSecurity(Portfolio, SubscriptionManager, _marketHoursDatabase, _symbolPropertiesDatabase, SecurityInitializer,
+                canonicalSymbol, resolution, fillDataForward, leverage, false, false, false);
+            Securities.Add(canonicalSecurity);
+
+            // add this security to the user defined universe
+            Universe universe;
+            var securityConfig = canonicalSecurity.SubscriptionDataConfig;
+            if (!UniverseManager.TryGetValue(canonicalSymbol, out universe))
+            {
+                var settings = new UniverseSettings(resolution, leverage, false, false, TimeSpan.Zero);
+                universe = new FuncUniverse(securityConfig, settings, SecurityInitializer, false, data =>
+                {
+                    var list = data.ToList();
+                    if (list.Count > 0 && list[0] is OptionChain)
+                    {
+                        return ((OptionChain) list[0]).FilteredContracts;
+                    }
+                    return list.Select(x => x.Symbol);
+                });
+                UniverseManager.Add(canonicalSymbol, universe);
+            }
+
+            return canonicalSecurity;
         }
 
         /// <summary>

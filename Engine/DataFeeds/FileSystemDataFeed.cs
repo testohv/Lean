@@ -31,6 +31,7 @@ using QuantConnect.Lean.Engine.Results;
 using QuantConnect.Logging;
 using QuantConnect.Packets;
 using QuantConnect.Securities;
+using QuantConnect.Securities.Option;
 using QuantConnect.Util;
 
 namespace QuantConnect.Lean.Engine.DataFeeds
@@ -331,8 +332,12 @@ namespace QuantConnect.Lean.Engine.DataFeeds
             var marketHoursDatabase = MarketHoursDatabase.FromDataFolder();
             var exchangeHours = marketHoursDatabase.GetExchangeHours(config);
 
-            // create a canonical security object
-            var security = new Security(exchangeHours, config, _algorithm.Portfolio.CashBook[CashBook.AccountCurrency], SymbolProperties.GetDefault(CashBook.AccountCurrency));
+            Security security;
+            if (!_algorithm.Securities.TryGetValue(config.Symbol, out security))
+            {
+                // create a canonical security object if it doesn't exist
+                security = new Security(exchangeHours, config, _algorithm.Portfolio.CashBook[CashBook.AccountCurrency], SymbolProperties.GetDefault(CashBook.AccountCurrency));
+            }
 
             var localStartTime = startTimeUtc.ConvertFromUtc(security.Exchange.TimeZone);
             var localEndTime = endTimeUtc.ConvertFromUtc(security.Exchange.TimeZone);
@@ -371,10 +376,16 @@ namespace QuantConnect.Lean.Engine.DataFeeds
                              let coarseFundamentalForDate = factory.Read(source)
                              select new BaseDataCollection(date, config.Symbol, coarseFundamentalForDate);
 
-                
+
                 ScheduleEnumerator(coarse.GetEnumerator(), enqueueable, 5, 100000, 2);
 
                 enumerator = enqueueable;
+            }
+            else if (security.Type == SecurityType.Option && security is Option)
+            { 
+                var option = (Option)security;
+                var mapFileResolver = _mapFileProvider.Get(config.Market);
+                enumerator = new EquityOptionSubscriptionDataReader(option, localStartTime, localEndTime, mapFileResolver, tradeableDates.GetEnumerator(), false);
             }
             else
             {
