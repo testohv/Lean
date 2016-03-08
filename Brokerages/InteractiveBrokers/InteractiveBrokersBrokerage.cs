@@ -1485,7 +1485,7 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
                 case IB.TickType.BidSize:
 
                     tick.TickType = TickType.Quote;
-
+                    tick.BidSize = e.Size;
                     _lastBidPrices.TryGetValue(symbol, out tick.BidPrice);
                     _lastBidSizes[symbol] = tick.Quantity;
 
@@ -1495,7 +1495,7 @@ namespace QuantConnect.Brokerages.InteractiveBrokers
                 case IB.TickType.AskSize:
 
                     tick.TickType = TickType.Quote;
-
+                    tick.AskSize = e.Size;
                     _lastAskPrices.TryGetValue(symbol, out tick.AskPrice);
                     _lastAskSizes[symbol] = tick.Quantity;
 
